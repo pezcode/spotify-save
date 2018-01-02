@@ -1,0 +1,16 @@
+{
+  "name": "spotify-save",
+  "version": "1.0.0",
+  "description": "Save the currently running song on Spotify to a playlist with a hotkey",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "pezcode",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^1.7.10"
+  }
+}
