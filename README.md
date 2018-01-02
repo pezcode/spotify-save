@@ -26,14 +26,14 @@ npm start
 
 ## Distribution
 
-If you wish to package the app into its own binary you can follow the [Electron distribution guide](https://electronjs.org/docs/tutorial/application-distribution) or automate it using e.g. [Electron Packager](https://www.npmjs.com/package/electron-packager):
+If you wish to package the app into its own binary you can run the build script which uses [Electron Packager](https://www.npmjs.com/package/electron-packager):
 
 ```bash
-# Install Electron Packager globally
-npm install electron-packager -g
-# Package the app to bin for the current host environment
-electron-packager . --out=bin
+# Package the app
+npm run build
 ```
+
+You will find the binaries for your current host environment in the bin folder.
 
 ## License
 

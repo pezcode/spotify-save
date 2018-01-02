@@ -1,4 +1,8 @@
+body {
+  background-color: #eee;
+  color: #881ed7;
+}
+
 h1 {
-  color: red;
   align: center;
 }

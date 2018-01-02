@@ -59,3 +59,6 @@ typings/
 
 # Electron Packager output
 bin/
+
+# Generated icons
+assets/icons/

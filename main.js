@@ -8,20 +8,29 @@ const url = require('url')
 let settingsWindow = null
 let tray = null
 
+// Application icons
+// Let Windows pick appropriate sizes from .ico
+let appIcon  = 'assets/icons/' + process.platform === 'win32' ? 'win/icon.ico' : 'png/1024x1024.png';
+let trayIcon = 'assets/icons/' + process.platform === 'win32' ? 'win/icon.ico' : 'png/64x64.png';
+
 function createSettingsWindow (onClosed) {
   // Create the browser window.
-  settingsWindow = new BrowserWindow({width: 800, height: 600})
+  var win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    icon: path.join(__dirname, 'assets/icons/win/icon.ico') // taskbar and handle icon
+  })
   // and load the html of the window.
-  settingsWindow.loadURL(url.format({
+  win.loadURL(url.format({
     pathname: path.join(__dirname, 'app/settings/index.html'),
     protocol: 'file:',
     slashes: true
   }))
   // Don't show an application menu
-  settingsWindow.setMenu(null)
+  win.setMenu(null)
   // Dereference the window object
-  settingsWindow.on('closed', onClosed)
-  return settingsWindow
+  win.on('closed', onClosed)
+  return win
 }
 
 function onShowSettings () {
@@ -34,7 +43,7 @@ function onShowSettings () {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function() {
-  tray = new Tray('assets/app-icon.png')
+  tray = new Tray(path.join(__dirname, 'assets/icons/win/icon.ico'))
   tray.setToolTip('spotify-save')
   const contextMenu = Menu.buildFromTemplate([
     {label: 'Settings', type: 'normal', click: onShowSettings},

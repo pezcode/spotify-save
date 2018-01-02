@@ -4,13 +4,26 @@
   "description": "Save the currently running song on Spotify to a playlist with a hotkey",
   "main": "main.js",
   "scripts": {
+    "install": "npm run generate-icons",
+    "uninstall": "npm run delete-icons && npm run delete-builds",
     "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "run-script-os",
+    "build:win32": "electron-packager . --out=./bin --icon=./assets/icons/win/icon.ico",
+    "build:darwin": "electron-packager . --out=./bin --icon=./assets/icons/mac/icon.icns",
+    "build:linux": "electron-packager . --out=./bin --icon=./assets/icons/png/1024x1024.png",
+    "delete-builds": "del-cli ./bin/**",
+    "generate-icons": "electron-icon-maker -i ./assets/app-icon.png -o ./assets",
+    "delete-icons": "del-cli ./assets/icons/**"
   },
   "author": "pezcode",
   "license": "MIT",
-  "dependencies": {},
-  "devDependencies": {
-    "electron": "^1.7.10"
-  }
+  "dependencies": {
+    "del-cli": "^1.1.0",
+    "electron": "^1.7.10",
+    "electron-icon-maker": "0.0.4",
+    "electron-packager": "^10.1.1",
+    "run-script-os": "^1.0.2"
+  },
+  "devDependencies": {}
 }
