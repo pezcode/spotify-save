@@ -1,4 +1,5 @@
-const {app, Menu, Tray, globalShortcut, BrowserWindow} = require('electron')
+const {app, Menu, Tray, nativeImage, globalShortcut, BrowserWindow} = require('electron')
+const assets = require('./assets.js')
 
 const path = require('path')
 const url = require('url')
@@ -6,26 +7,26 @@ const url = require('url')
 // Keep a global reference of the window objects, if you don't, the windows will
 // be closed automatically when the JavaScript object is garbage collected.
 let settingsWindow = null
-let tray = null
-
-// Application icons
-// Let Windows pick appropriate sizes from .ico
-let appIcon  = 'assets/icons/' + (process.platform === 'win32' ? 'win/icon.ico' : 'png/1024x1024.png')
-let trayIcon = 'assets/icons/' + (process.platform === 'win32' ? 'win/icon.ico' : 'png/64x64.png')
+let trayMenu = null
 
 function createSettingsWindow (onClosed) {
   // Create the browser window.
   var win = new BrowserWindow({
     width: 800,
     height: 600,
-    icon: path.join(__dirname, appIcon) // taskbar and handle icon
+    title: app.getName(),
+    icon: path.join(__dirname, assets.appIcon), // taskbar and handle icon
+    show: false
   })
+  win.once('ready-to-show', win.show)
   // and load the html of the window.
   win.loadURL(url.format({
     pathname: path.join(__dirname, 'app/settings/index.html'),
     protocol: 'file:',
     slashes: true
   }))
+  // show Chromium dev tools
+  // win.openDevTools()
   // Don't show an application menu
   win.setMenu(null)
   // Dereference the window object
@@ -33,25 +34,31 @@ function createSettingsWindow (onClosed) {
   return win
 }
 
-function onShowSettings () {
+function showSettings () {
   if (settingsWindow === null) {
     settingsWindow = createSettingsWindow(() => { settingsWindow = null })
   }
+}
+
+function createTrayMenu () {
+  // this randomly fails to resolve the path
+  // createFromPath makes sure it turns into an empty image instead of throwing an exception
+  tray = new Tray(nativeImage.createFromPath(path.join(__dirname, assets.trayIcon)))
+  tray.setToolTip(app.getName())
+  const contextMenu = Menu.buildFromTemplate([
+    {label: 'Settings', type: 'normal', click: showSettings},
+    {type: 'separator'},
+    {label: 'Close', type: 'normal', click: app.quit}
+  ])
+  tray.setContextMenu(contextMenu)
+  tray.on('click', showSettings)
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function() {
-  tray = new Tray(path.join(__dirname, trayIcon))
-  tray.setToolTip('spotify-save')
-  const contextMenu = Menu.buildFromTemplate([
-    {label: 'Settings', type: 'normal', click: onShowSettings},
-    {type: 'separator'},
-    {label: 'Close', type: 'normal', click: app.quit}
-  ])
-  tray.setContextMenu(contextMenu)
-  tray.on('click', onShowSettings)
+  trayMenu = createTrayMenu()
   // Register global shortcut listener
   const accelerator = 'CommandOrControl+F10'
   const ret = globalShortcut.register(accelerator, () => { console.log('Shortcut pressed: ' + accelerator) })
@@ -61,7 +68,7 @@ app.on('ready', function() {
 })
 
 // OSX
-app.on('activate', onShowSettings)
+app.on('activate', showSettings)
 
 // Subscribe to override default behavior of quitting
 app.on('window-all-closed', () => { })
