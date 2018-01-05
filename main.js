@@ -1,4 +1,4 @@
-const {app, Menu, Tray, nativeImage, globalShortcut, BrowserWindow} = require('electron')
+const {app, Menu, Tray, nativeImage, globalShortcut, BrowserWindow, ipcMain} = require('electron')
 const assets = require('./assets.js')
 
 const path = require('path')
@@ -8,6 +8,26 @@ const url = require('url')
 // be closed automatically when the JavaScript object is garbage collected.
 let settingsWindow = null
 let trayMenu = null
+
+let data = {}
+
+function settingsChanged () {
+  settingsWindow.webContents.send('settings', data)
+}
+
+ipcMain.on('settings', function(event, settings) {
+  data = settings
+})
+
+ipcMain.on('login', function(event) {
+  data.loggedIn = true
+  settingsChanged()
+})
+
+ipcMain.on('logout', function(event) {
+  data.loggedIn = false
+  settingsChanged()
+})
 
 function createSettingsWindow (onClosed) {
   // Create the browser window.
@@ -31,6 +51,7 @@ function createSettingsWindow (onClosed) {
   win.setMenu(null)
   // Dereference the window object
   win.on('closed', onClosed)
+  win.once('did-finish-load', settingsChanged)
   return win
 }
 

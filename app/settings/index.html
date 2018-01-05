@@ -9,11 +9,11 @@
     <div id="settings">
       <span v-if="loggedIn">
         <p>Logged in as {{ user }}</p>
-        <button @click="loggedIn = false">Log out</button>
+        <button v-on:click="logout">Log out</button>
       </span>
       <span v-else>
         <p>Not logged in</p>
-        <button @click="loggedIn = true">Log in</button>
+        <button v-on:click="login">Log in</button>
       </span>
       <form>
         <fieldset :disabled="!loggedIn">
