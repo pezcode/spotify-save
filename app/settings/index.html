@@ -2,16 +2,35 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>spotify-save</title>
+    <!-- no title lets us set title during BrowserWindow creation -->
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <h1>Settings</h1>
-
-    <select name="playlist">
-      <option value="default">My Songs</option>
-    </select>
-
+    <div id="settings">
+      <span v-if="loggedIn">
+        <p>Logged in as {{ user }}</p>
+        <button @click="loggedIn = false">Log out</button>
+      </span>
+      <span v-else>
+        <p>Not logged in</p>
+        <button @click="loggedIn = true">Log in</button>
+      </span>
+      <form>
+        <fieldset :disabled="!loggedIn">
+          <legend>Settings</legend>
+          <input type="checkbox" id="save-to-library" v-model="saveToLibrary">
+          <label for="save-to-library">Save to My Songs</label>
+          <br>
+          <label for="playlists">Playlist</label>
+          <select id="playlists" v-model="selectedPlaylist" :disabled="!saveToLibrary">
+            <option disabled value="-1">Please select a playlist</option>
+            <option v-for="playlist in playlists" v-bind:value="playlist.id">
+              {{ playlist.name }}
+            </option>
+          </select>
+        </fieldset>
+      </form>
+    </div>
     <script>
       // You can also require other files to run in this process
       require('./renderer.js')
