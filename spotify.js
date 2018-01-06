@@ -1,9 +1,11 @@
-var SpotifyWebApi = require('spotify-web-api-node')
+'use strict'
+
+const SpotifyWebApi = require('spotify-web-api-node')
 const http = require('http')
 const url = require('url')
 const fs = require('fs')
 const randomstring = require('randomstring')
-config = require('./config.json')
+const config = require('./config.json')
 
 let authState = null
 let authTokens = {}
@@ -13,21 +15,21 @@ const uri = 'http://localhost:' + config.callbackPort + config.callbackPath
 // https://developer.spotify.com/web-api/using-scopes/
 const scopes = ['user-read-currently-playing', 'user-library-modify', 'playlist-read-private', 'playlist-modify-public', 'playlist-modify-private']
 const spotifyApi = new SpotifyWebApi({
-  clientId : config.clientId,
+  clientId: config.clientId,
   clientSecret: config.clientSecret,
-  redirectUri : uri
+  redirectUri: uri
 })
 
 let authCallback = () => { }
 
-let server = startServer()
+startServer()
 // when do we start/close this?
 
 // this server listens to requests on the redirect URI registered with Spotify when logging in
 // it gives us an auth code we can pass to spotifyApi to get the tokens needed to access data
-function startServer() {
-  var server = http.createServer(function(request, response) {
-    var status = 200
+function startServer () {
+  let server = http.createServer(function (request, response) {
+    let status = 200
     if (request.method === 'GET') {
       const parsed = new url.URL(request.url, 'http://localhost:' + config.callbackPort)
       if (parsed.pathname === config.callbackPath) {
@@ -41,28 +43,29 @@ function startServer() {
         }
       }
     }
-    //setTimeout(() => { server.close() }, 15000)
-    response.writeHead(status, {'Content-Type':'text/plain'})
+    // setTimeout(() => { server.close() }, 15000)
+    response.writeHead(status, {'Content-Type': 'text/plain'})
     response.end()
   })
   server.listen(config.callbackPort)
   return server
 }
 
-function onAuthCode(code) {
+function onAuthCode (code) {
   spotifyApi.authorizationCodeGrant(code)
-    .then(function(data) {
+    .then(function (data) {
       onAuthData(data.body)
       saveTokens()
-    }, function(err) {
+    })
+    .catch(function (err) {
       console.error('Failed to authorize with code!', err)
     })
 }
 
-function onAuthData(data) {
+function onAuthData (data) {
   authTokens.expiresOn = Date.now() + (data.expires_in * 1000)
   setTimeout(refreshAuthData, data.expires_in * 1000)
-  if('refresh_token' in data) {
+  if ('refresh_token' in data) {
     authTokens.refreshToken = data.refresh_token
     spotifyApi.setRefreshToken(authTokens.refreshToken)
   }
@@ -70,21 +73,21 @@ function onAuthData(data) {
   spotifyApi.setAccessToken(authTokens.accessToken)
 }
 
-function refreshAuthData() {
+function refreshAuthData () {
   return spotifyApi.refreshAccessToken()
-    .then(function(data) {
+    .then(function (data) {
       onAuthData(data.body)
       saveTokens()
       return authTokens.expiresOn
     })
 }
 
-function readTokens() {
+function readTokens () {
   try {
     authTokens = JSON.parse(fs.readFileSync('./auth.json', 'utf8'))
-  } catch(err) {
-    if(err.code === 'ENOENT') {
-      //console.log('No auth file found')
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      // console.log('No auth file found')
     } else {
       console.error('Failed to read auth file')
     }
@@ -92,27 +95,27 @@ function readTokens() {
   }
 }
 
-function saveTokens() {
-  fs.writeFile('./auth.json', JSON.stringify(authTokens, null, 2), 'utf-8', function(err) {
-    if(err) {
+function saveTokens () {
+  fs.writeFile('./auth.json', JSON.stringify(authTokens, null, 2), 'utf-8', function (err) {
+    if (err) {
       console.error('Failed to write auth file!', err)
     }
   })
 }
 
-exports.setAuthCallback = function(callback) {
+exports.setAuthCallback = function (callback) {
   authCallback = callback
 }
 
-exports.getAuthUrl = function() {
+exports.getAuthUrl = function () {
   // let user login and grant scope privileges
-  if(authState === null) {
+  if (authState === null) {
     authState = randomstring.generate() // very basic security =D
   }
   return spotifyApi.createAuthorizeURL(scopes, authState)
 }
 
-exports.loggedIn = function() {
+exports.loggedIn = function () {
   return (spotifyApi.getAccessToken() != null)
 }
 
@@ -121,16 +124,16 @@ class NoAuthError extends Error { }
 exports.NoAuthError = NoAuthError
 exports.WebApiError = spotifyApi.WebApiError
 
-exports.login = function() {
+exports.login = function () {
   readTokens()
-  if(!('accessToken' in authTokens)) {
+  if (!('accessToken' in authTokens)) {
     return Promise.reject(new NoAuthError('No auth data. Log in and grant auth code'))
   }
   spotifyApi.setAccessToken(authTokens.accessToken)
   spotifyApi.setRefreshToken(authTokens.refreshToken)
   console.log('Auth token expires at ' + (new Date(authTokens.expiresOn)).toLocaleString())
   // if the access token expired, get a new one
-  if(authTokens.expiresOn < Date.now()) {
+  if (authTokens.expiresOn < Date.now()) {
     console.log('Auth token expired, requesting new one')
     return refreshAuthData()
   } else {
@@ -139,16 +142,16 @@ exports.login = function() {
   }
 }
 
-exports.logout = function() {
+exports.logout = function () {
   spotifyApi.setAccessToken(null)
   spotifyApi.setRefreshToken(null)
   authTokens = { }
   saveTokens()
 }
 
-exports.getUser = function() {
+exports.getUser = function () {
   return spotifyApi.getMe()
-    .then(function(data) {
+    .then(function (data) {
       // displayname for facebook accounts (id is a number in that case)
       // id for accounts with email-login (displayname is null)
       const user = {
@@ -159,9 +162,9 @@ exports.getUser = function() {
     })
 }
 
-exports.getCurrentSong = function(callback) {
+exports.getCurrentSong = function (callback) {
   return spotifyApi.getMyCurrentPlayingTrack()
-    .then(function(data) {
+    .then(function (data) {
       const song = {
         id: data.item.id,
         title: data.item.name,
@@ -173,15 +176,14 @@ exports.getCurrentSong = function(callback) {
     })
 }
 
-function getPlaylistsRecursive(playlists, offset) {
+function getPlaylistsRecursive (playlists, offset) {
   // go with default limit
-  //const limit = 10
-  return spotifyApi.getUserPlaylists(null, {/*limit: limit, */offset: offset})
-    .then(function(data) {
+  return spotifyApi.getUserPlaylists(null, {offset: offset})
+    .then(function (data) {
       // only extract id and name from new playlist objects
       const newlist = playlists.concat(data.body.items.map(pl => ({id: pl.id, name: pl.name})))
       const newoffset = data.body.offset + data.body.items.length
-      if(newoffset < data.body.total) { // more items to get
+      if (newoffset < data.body.total) { // more items to get
         return getPlaylistsRecursive(newlist, newoffset)
       } else {
         return newlist
@@ -189,10 +191,10 @@ function getPlaylistsRecursive(playlists, offset) {
     })
 }
 
-exports.getPlaylists = function() {
+exports.getPlaylists = function () {
   return getPlaylistsRecursive([], 0)
 }
 
-exports.saveSong = function(song, playlist) {
+exports.saveSong = function (song, playlist) {
 
 }

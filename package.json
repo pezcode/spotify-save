@@ -13,6 +13,7 @@
     "uninstall": "npm run delete-icons && npm run delete-builds",
     "start": "electron .",
     "debug": "electron --inspect-brk .",
+    "lint": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "run-script-os",
     "build:win32": "electron-packager . --out=./bin --icon=./assets/icons/win/icon.ico",
@@ -34,6 +35,15 @@
     "del-cli": "^1.1.0",
     "electron-icon-maker": "0.0.4",
     "electron-packager": "^10.1.1",
+    "eslint": "^4.14.0",
+    "eslint-config-standard": "^11.0.0-beta.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
     "run-script-os": "^1.0.2"
+  },
+  "engines": {
+    "node" : ">=6.0.0"
   }
 }
