@@ -8,13 +8,13 @@ const { ipcRenderer } = require('electron')
 // you would need webpack/browserify with a vue loader in that case
 const Vue = require('vue/dist/vue.js')
 
-// default values
+// sane default values
 let data = {
   loggedIn: false,
-  user: 'hui',
+  user: null,
   saveToLibrary: false,
   selectedPlaylist: -1,
-  playlists: [{id: 1, name:'Playlist 1'}, {id: 2, name: 'Playlist 2'}]
+  playlists: []
 }
 
 var vm = new Vue({
@@ -37,4 +37,19 @@ ipcRenderer.on('settings', function(event, settings) {
   //data = settings
   // copy values instead of replacing object
   Object.assign(data, settings)
+})
+
+ipcRenderer.on('logged-in', function(event, user) {
+  data.user = user
+  data.loggedIn = true
+})
+
+ipcRenderer.on('login-failed', function(event) {
+  data.loggedIn = false
+  data.user = null
+})
+
+ipcRenderer.on('logged-out', function(event) {
+  data.loggedIn = false
+  data.user = null
 })

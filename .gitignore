@@ -62,3 +62,7 @@ bin/
 
 # Generated icons
 assets/icons/
+
+# Config file, contains sensitive data
+config.json
+auth.json

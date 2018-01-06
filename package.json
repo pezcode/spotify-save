@@ -12,6 +12,7 @@
     "install": "npm run generate-icons",
     "uninstall": "npm run delete-icons && npm run delete-builds",
     "start": "electron .",
+    "debug": "electron --inspect-brk .",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "run-script-os",
     "build:win32": "electron-packager . --out=./bin --icon=./assets/icons/win/icon.ico",
@@ -25,6 +26,8 @@
   "license": "MIT",
   "dependencies": {
     "electron": "^1.7.10",
+    "randomstring": "^1.1.5",
+    "spotify-web-api-node": "^2.5.0",
     "vue": "^2.5.13"
   },
   "devDependencies": {

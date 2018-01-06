@@ -1,5 +1,6 @@
-const {app, Menu, Tray, nativeImage, globalShortcut, BrowserWindow, ipcMain} = require('electron')
+const {app, Menu, Tray, nativeImage, globalShortcut, BrowserWindow, ipcMain, session} = require('electron')
 const assets = require('./assets.js')
+const spotify = require('./spotify.js')
 
 const path = require('path')
 const url = require('url')
@@ -9,36 +10,93 @@ const url = require('url')
 let settingsWindow = null
 let trayMenu = null
 
-let data = {}
+let data = {
+  loggedIn: false,
+  user: null,
+  saveToLibrary: false,
+  selectedPlaylist: -1,
+  playlists: []
+}
 
 function settingsChanged () {
-  settingsWindow.webContents.send('settings', data)
+  if(settingsWindow) {
+    settingsWindow.webContents.send('settings', data)
+  }
+}
+
+function login(success, error) {
+  spotify.login()
+    .then(function(expiresOn) {
+      console.log('Logged in, expires at ' + (new Date(expiresOn)).toLocaleTimeString())
+      return spotify.getUser()
+    })
+    .then(function(user) {
+      data.user = user
+      data.loggedIn = true
+      return spotify.getPlaylists()
+    })
+    .then(function(playlists) {
+      data.playlists = playlists
+      settingsChanged()
+      success()
+      console.log('Loaded user data')
+    })
+    .catch(function(err) {
+      // spotify.WebApiError
+      if(err instanceof spotify.NoAuthError) {
+        console.log('Opening auth URL')
+        let authWin = createAuthWindow()
+      } else {
+        console.error("Failed to log in and read user data!", err)
+        error(err)
+      }
+    })/*
+    .catch(function(err) {
+      console.error("Can't get user data!", err)
+      error()
+    })*/
+}
+
+function logout() {
+  // should probably move this out to a seperate store module
+  spotify.logout()
+  data.loggedIn = false
+  data.user = null
+  data.selectedPlaylist = -1
+  data.playlists = []
+  settingsChanged()
+  // clear cookies so auth URL requires login  data
+  session.defaultSession.clearStorageData()
+  console.log('Logged out')
 }
 
 ipcMain.on('settings', function(event, settings) {
+  //Object.assign(data, settings)
   data = settings
 })
 
 ipcMain.on('login', function(event) {
-  data.loggedIn = true
-  settingsChanged()
+  login(function() {
+    event.sender.send('logged-in', data.user)
+  }, function(err) {
+    event.sender.send('login-failed')
+  })
 })
 
 ipcMain.on('logout', function(event) {
-  data.loggedIn = false
-  settingsChanged()
+  logout()
+  event.sender.send('logged-out')
 })
 
-function createSettingsWindow (onClosed) {
+function createSettingsWindow(onClosed) {
   // Create the browser window.
-  var win = new BrowserWindow({
+  let win = new BrowserWindow({
     width: 800,
     height: 600,
     title: app.getName(),
     icon: path.join(__dirname, assets.appIcon), // taskbar and handle icon
     show: false
   })
-  win.once('ready-to-show', win.show)
   // and load the html of the window.
   win.loadURL(url.format({
     pathname: path.join(__dirname, 'app/settings/index.html'),
@@ -48,20 +106,38 @@ function createSettingsWindow (onClosed) {
   // show Chromium dev tools
   // win.openDevTools()
   // Don't show an application menu
-  win.setMenu(null)
-  // Dereference the window object
-  win.on('closed', onClosed)
-  win.once('did-finish-load', settingsChanged)
+  //win.setMenu(null)
+  //win.once('did-finish-load', settingsChanged)
+  win.once('ready-to-show', () => {win.show(); settingsChanged() })
+  win.once('closed', onClosed)
   return win
 }
 
-function showSettings () {
+function createAuthWindow() {
+  let authWin = new BrowserWindow({
+    width: 800,
+    height: 600,
+    show: false
+  })
+  spotify.setAuthCallback(function() {
+    console.log('Auth closed!')
+    // recursive :/
+    // this opens more auth windows until the auth data actually arrived
+    login(() => { }, () => { })
+    authWin.close()
+  })
+  authWin.loadURL(spotify.getAuthUrl())
+  authWin.once('ready-to-show', authWin.show)
+  return authWin
+}
+
+function showSettings() {
   if (settingsWindow === null) {
-    settingsWindow = createSettingsWindow(() => { settingsWindow = null })
+    settingsWindow = createSettingsWindow(() => { settingsWindow = null }) // Dereference the window object
   }
 }
 
-function createTrayMenu () {
+function createTrayMenu() {
   // this randomly fails to resolve the path
   // createFromPath makes sure it turns into an empty image instead of throwing an exception
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, assets.trayIcon)))
@@ -82,10 +158,17 @@ app.on('ready', function() {
   trayMenu = createTrayMenu()
   // Register global shortcut listener
   const accelerator = 'CommandOrControl+F10'
-  const ret = globalShortcut.register(accelerator, () => { console.log('Shortcut pressed: ' + accelerator) })
+  const ret = globalShortcut.register(accelerator, () => { console.log('Current song: ' + spotify.getCurrentSong()) })
   if (!ret) {
     console.error('Shortcut registration failed: ' + accelerator)
   }
+
+  login(() => { }, () => { })
+})
+
+app.on('quit', function() {
+  // Clear all storages (cookies, cache, etc)
+  session.defaultSession.clearStorageData()
 })
 
 // OSX

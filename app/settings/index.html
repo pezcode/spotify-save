@@ -8,7 +8,8 @@
   <body>
     <div id="settings">
       <span v-if="loggedIn">
-        <p>Logged in as {{ user }}</p>
+        <img v-bind:src="user.image">
+        <p>Logged in as {{ user.name }}</p>
         <button v-on:click="logout">Log out</button>
       </span>
       <span v-else>
@@ -22,7 +23,7 @@
           <label for="save-to-library">Save to My Songs</label>
           <br>
           <label for="playlists">Playlist</label>
-          <select id="playlists" v-model="selectedPlaylist" :disabled="!saveToLibrary">
+          <select size="6" id="playlists" v-model="selectedPlaylist" :disabled="!saveToLibrary">
             <option disabled value="-1">Please select a playlist</option>
             <option v-for="playlist in playlists" v-bind:value="playlist.id">
               {{ playlist.name }}
