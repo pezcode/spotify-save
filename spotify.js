@@ -103,6 +103,10 @@ function saveTokens () {
   })
 }
 
+// used by login
+class NoAuthError extends Error { }
+exports.NoAuthError = NoAuthError
+
 exports.setAuthCallback = function (callback) {
   authCallback = callback
 }
@@ -119,11 +123,6 @@ exports.loggedIn = function () {
   return (spotifyApi.getAccessToken() != null)
 }
 
-class NoAuthError extends Error { }
-
-exports.NoAuthError = NoAuthError
-exports.WebApiError = spotifyApi.WebApiError
-
 exports.login = function () {
   readTokens()
   if (!('accessToken' in authTokens)) {
@@ -131,13 +130,12 @@ exports.login = function () {
   }
   spotifyApi.setAccessToken(authTokens.accessToken)
   spotifyApi.setRefreshToken(authTokens.refreshToken)
-  console.log('Auth token expires at ' + (new Date(authTokens.expiresOn)).toLocaleString())
   // if the access token expired, get a new one
   if (authTokens.expiresOn < Date.now()) {
     console.log('Auth token expired, requesting new one')
     return refreshAuthData()
   } else {
-    console.log('Using existing auth token')
+    console.log('Auth token still valid until ' + (new Date(authTokens.expiresOn)).toLocaleString())
     return Promise.resolve(authTokens.expiresOn)
   }
 }
