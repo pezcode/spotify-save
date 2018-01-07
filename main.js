@@ -7,21 +7,33 @@ const spotify = require('./spotify.js')
 const path = require('path')
 const url = require('url')
 
+/*
+To fix:
+error dialog when login fails (don't have to close, just keep existing in tray)
+auth url gets called a few times because of recursion in login -> authWindow -> login ...
+
+To do:
+hotkey module
+store module
+refactor data
+clean up login/settings transfer
+*/
+
 // Keep a global reference of the window objects, if you don't, the windows will
 // be closed automatically when the JavaScript object is garbage collected.
 let settingsWindow = null
 
 let data = {
-  loggedIn: false,
   user: null,
-  saveToLibrary: false,
-  selectedPlaylist: -1,
-  playlists: []
+  playlists: [],
+  selectedPlaylists: ['0', 'abc'],
+  keys: [{id: 'x', name: 'X'}, {id: 'pp', name: 'Play/Pause'}],
+  hotkey: { key: 'pp', modifiers: ['alt', 'shift'] }
 }
 
 function settingsChanged () {
   if (settingsWindow) {
-    settingsWindow.webContents.send('settings', data)
+    settingsWindow.webContents.send('settings-changed', data)
   }
 }
 
@@ -33,7 +45,6 @@ function login (success, error) {
     })
     .then(function (user) {
       data.user = user
-      data.loggedIn = true
       return spotify.getPlaylists()
     })
     .then(function (playlists) {
@@ -57,9 +68,7 @@ function login (success, error) {
 function logout () {
   // should probably move this out to a seperate store module
   spotify.logout()
-  data.loggedIn = false
   data.user = null
-  data.selectedPlaylist = -1
   data.playlists = []
   settingsChanged()
   // clear cookies so auth URL requires login  data
@@ -67,7 +76,7 @@ function logout () {
   console.log('Logged out')
 }
 
-ipcMain.on('settings', function (event, settings) {
+ipcMain.on('settings-changed', function (event, settings) {
   //  Object.assign(data, settings)
   data = settings
 })
@@ -85,12 +94,16 @@ ipcMain.on('logout', function (event) {
   event.sender.send('logged-out')
 })
 
+ipcMain.on('close-settings', function (event) {
+  settingsWindow.close()
+})
+
 function createSettingsWindow (onClosed) {
   // Create the browser window.
   let win = new BrowserWindow({
     width: 800,
     height: 600,
-    title: app.getName(),
+    title: app.getName() + ' Settings',
     icon: path.join(__dirname, assets.appIcon), // taskbar and handle icon
     show: false
   })
@@ -101,7 +114,7 @@ function createSettingsWindow (onClosed) {
     slashes: true
   }))
   // show Chromium dev tools
-  // win.openDevTools()
+   win.openDevTools()
   // Don't show an application menu
   // win.setMenu(null)
   win.once('ready-to-show', () => { win.show(); settingsChanged() })
@@ -113,6 +126,7 @@ function createAuthWindow () {
   let authWin = new BrowserWindow({
     width: 800,
     height: 600,
+    icon: path.join(__dirname, assets.appIcon),
     show: false
   })
   spotify.setAuthCallback(function () {
@@ -123,6 +137,7 @@ function createAuthWindow () {
     authWin.close()
   })
   authWin.loadURL(spotify.getAuthUrl())
+  authWin.setMenu(null)
   authWin.once('ready-to-show', authWin.show)
   return authWin
 }

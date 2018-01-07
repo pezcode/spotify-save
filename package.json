@@ -9,29 +9,30 @@
   },
   "main": "main.js",
   "scripts": {
-    "install": "npm run generate-icons",
-    "uninstall": "npm run delete-icons && npm run delete-builds",
+    "install": "npm run copy-css && npm run generate-icons",
     "start": "electron .",
     "debug": "electron --inspect-brk .",
     "lint": "eslint .",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "run-script-os",
     "build:win32": "electron-packager . --out=./bin --icon=./assets/icons/win/icon.ico",
     "build:darwin": "electron-packager . --out=./bin --icon=./assets/icons/mac/icon.icns",
     "build:linux": "electron-packager . --out=./bin --icon=./assets/icons/png/1024x1024.png",
-    "delete-builds": "del-cli ./bin/**",
+    "build-clean": "del-cli ./bin/**",
     "generate-icons": "electron-icon-maker -i ./assets/app-icon.png -o ./assets",
-    "delete-icons": "del-cli ./assets/icons/**"
+    "delete-icons": "del-cli ./assets/icons/**",
+    "copy-css": "copyfiles -f ./node_modules/bulma/css/bulma.css ./app"
   },
   "author": "pezcode",
   "license": "MIT",
   "dependencies": {
+    "bulma": "^0.6.1",
     "electron": "^1.7.10",
     "randomstring": "^1.1.5",
     "spotify-web-api-node": "^2.5.0",
     "vue": "^2.5.13"
   },
   "devDependencies": {
+    "copyfiles": "^1.2.0",
     "del-cli": "^1.1.0",
     "electron-icon-maker": "0.0.4",
     "electron-packager": "^10.1.1",

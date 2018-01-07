@@ -3,38 +3,120 @@
   <head>
     <meta charset="UTF-8">
     <!-- no title lets us set title during BrowserWindow creation -->
+    <link rel="stylesheet" href="../bulma.css" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <div id="settings">
-      <span v-if="loggedIn">
-        <img v-bind:src="user.image">
-        <p>Logged in as {{ user.name }}</p>
-        <button v-on:click="logout">Log out</button>
-      </span>
-      <span v-else>
-        <p>Not logged in</p>
-        <button v-on:click="login">Log in</button>
-      </span>
-      <form>
-        <fieldset :disabled="!loggedIn">
-          <legend>Settings</legend>
-          <input type="checkbox" id="save-to-library" v-model="saveToLibrary">
-          <label for="save-to-library">Save to My Songs</label>
-          <br>
-          <label for="playlists">Playlist</label>
-          <select size="6" id="playlists" v-model="selectedPlaylist" :disabled="!saveToLibrary">
-            <option disabled value="-1">Please select a playlist</option>
-            <option v-for="playlist in playlists" v-bind:value="playlist.id">
-              {{ playlist.name }}
-            </option>
-          </select>
-        </fieldset>
-      </form>
+      <nav class="level is-mobile"> <!-- is-mobile makes it appear on any viewport size -->
+        <!-- Left side -->
+        <div class="level-left">
+          <div v-if="user" class="level-item">
+            <img v-bind:src="user.image" class="image is-32x32 avatar">
+          </div>
+          <div class="level-item">
+            <p v-if="user">Logged in as <strong>{{ user.name }}</strong></p>
+            <p v-else>Not logged in</p>
+          </div>
+        </div>
+        <!-- Right side -->
+        <div class="level-right">
+          <div class="level-item">
+            <a v-if="user" v-on:click="logout" class="button is-danger is-small">Logout</a>
+            <!-- todo: Use bulma is-loading on the button while login in progress -->
+            <a v-else v-on:click="login" class="button is-small">Log in</a>
+          </div>
+        </div>
+      </nav>
+      <section>
+        <form v-on:submit.prevent="save"> <!-- prevent page reload when form is submitted -->
+          <div class="field is-horizontal">
+            <div class="field-label">
+              <label class="label">Playlists</label>
+            </div>
+            <div class="field-body">
+              <div v-if="user" class="field">
+                <div class="control">
+                  <div class="select is-multiple is-small">
+                    <select multiple size="7" id="playlists" v-model="selectedPlaylists">
+                      <option disabled value="-1">Library</option>
+                      <option value="0">My Songs</option>
+                      <option disabled value="-1">Playlists</option>
+                      <option v-for="playlist in playlists" v-bind:value="playlist.id" :key="playlist.id">
+                        {{ playlist.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <p class="help">Select one or more playlist(s) you want to save the current song to</p>
+              </div>
+              <div v-else class="field">
+                <div class="control">
+                  <p class="help is-danger">Log in to your Spotify account to see playlists</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field is-horizontal">
+            <div class="field-label">
+              <label class="label">Hotkey</label>
+            </div>
+            <div class="field-body">
+              <div class="field is-narrow">
+                <div class="field is-grouped">
+                  <div class="control">
+                    <label for="modifier-ctrl" class="checkbox is-small">
+                      <input type="checkbox" id="modifier-ctrl" value="ctrl" v-model="hotkey.modifiers">
+                      Control
+                    </label>
+                  </div>
+                  <div class="control">
+                    <label for="modifier-shift" class="checkbox is-small">
+                      <input type="checkbox" id="modifier-shift" value="shift" v-model="hotkey.modifiers">
+                      Shift
+                    </label>
+                  </div>
+                  <div class="control">
+                    <label for="modifier-alt" class="checkbox is-small">
+                      <input type="checkbox" id="modifier-alt" value="alt" v-model="hotkey.modifiers">
+                      Alt
+                    </label>
+                  </div>
+                </div>
+                <p class="help">Modifiers (Control = Command on Mac)</p>
+              </div>
+              <div class="field is-expanded">
+                <div class="control">
+                  <div class="select is-small">
+                    <select id="keys" v-model="hotkey.key">
+                      <option v-for="key in keys" v-bind:value="key.id" :key="key.id">
+                        {{ key.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <hr>
+          <div class="field is-horizontal">
+            <div class="field-label">
+              <!-- empty label to preserve alignment -->
+            </div>
+            <div class="field-body">
+              <div class="field is-grouped">
+                <div class="control">
+                  <input type="submit" value="Save" class="button is-primary">
+                </div>
+                <div class="control">
+                  <input type="button" value="Cancel" v-on:click="cancel" class="button">
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </section>
     </div>
-    <script>
-      // You can also require other files to run in this process
-      require('./renderer.js')
-    </script>
+    <script src="./renderer.js"></script>
   </body>
 </html>

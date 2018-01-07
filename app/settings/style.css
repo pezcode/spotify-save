@@ -1,8 +1,59 @@
-body {
-  background-color: #eee;
-  color: #881ed7;
+:root {
+  --accent-color: #7c1ed7; /* same purple as in the app icon */
+  --text-color: #222222; /* dark gray */
+  --inverted-text-color: #eeeeee; /* light white */
 }
 
-h1 {
-  align: center;
+html {
+  background-color: #f1f1f1;
+}
+
+.avatar {
+  border: 1px solid black;
+}
+
+.help {
+  color: #666666;
+}
+
+nav {
+  border-width: 1px;
+  border-color: black;
+  border-bottom-style: solid;
+  padding: 3px;
+  background-color: var(--accent-color);
+}
+
+nav .avatar {
+  border-radius: 50%; /* circle */
+}
+
+/* bulma hardcodes the color of <strong> */
+nav p, nav p * {
+  color: var(--inverted-text-color);
+}
+
+section {
+  padding: 10px;
+}
+
+select {
+  /*
+  make <option> recognize the <select> width and not apply a min-width
+  this prevents the <select> from being wider than it should be with long entries
+  */
+  width: 100%;
+}
+
+select[multiple] option:disabled {
+  font-size: 125%;
+  font-weight: bold;
+}
+
+select[multiple] option:disabled::after {
+  content: ":";
+}
+
+select[multiple] option:not(:disabled) {
+  padding-left: 20px;
 }

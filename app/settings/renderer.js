@@ -12,31 +12,35 @@ const Vue = require('vue/dist/vue.js')
 
 // sane default values
 let data = {
-  loggedIn: false,
   user: null,
-  saveToLibrary: false,
-  selectedPlaylist: -1,
-  playlists: []
+  selectedPlaylists: [],
+  playlists: [],
+  keys: [],
+  hotkey: { key: null, modifiers: [] },
 }
 
 // eslint-disable-next-line no-new
 new Vue({
   el: '#settings',
   data: data,
-  updated: function () {
-    ipcRenderer.send('settings', data)
-  },
   methods: {
     login: function (event) {
       ipcRenderer.send('login')
     },
     logout: function (event) {
       ipcRenderer.send('logout')
+    },
+    save: function (event) {
+      ipcRenderer.send('settings-changed', data)
+      ipcRenderer.send('close-settings')
+    },
+    cancel: function (event) {
+      ipcRenderer.send('close-settings')
     }
   }
 })
 
-ipcRenderer.on('settings', function (event, settings) {
+ipcRenderer.on('settings-changed', function (event, settings) {
   // data = settings
   // copy values instead of replacing object
   Object.assign(data, settings)
@@ -44,15 +48,12 @@ ipcRenderer.on('settings', function (event, settings) {
 
 ipcRenderer.on('logged-in', function (event, user) {
   data.user = user
-  data.loggedIn = true
 })
 
 ipcRenderer.on('login-failed', function (event) {
-  data.loggedIn = false
   data.user = null
 })
 
 ipcRenderer.on('logged-out', function (event) {
-  data.loggedIn = false
   data.user = null
 })
