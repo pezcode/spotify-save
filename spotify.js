@@ -36,10 +36,11 @@ function startServer () {
         if (parsed.searchParams.get('state') === authState) {
           if (parsed.searchParams.has('code')) {
             onAuthCode(parsed.searchParams.get('code'))
+            // call authcallback later, so auth data is available
           } else if (parsed.searchParams.has('error')) {
             console.error(parsed.searchParams.get('error'))
+            authCallback(false)
           }
-          authCallback() // call it here to also catch errors
         }
       }
     }
@@ -56,6 +57,7 @@ function onAuthCode (code) {
     .then(function (data) {
       onAuthData(data.body)
       saveTokens()
+      authCallback(true)
     })
     .catch(function (err) {
       console.error('Failed to authorize with code!', err)
@@ -96,11 +98,11 @@ function readTokens () {
 }
 
 function saveTokens () {
-  fs.writeFile('./auth.json', JSON.stringify(authTokens, null, 2), 'utf-8', function (err) {
-    if (err) {
-      console.error('Failed to write auth file!', err)
-    }
-  })
+  try {
+    fs.writeFileSync('./auth.json', JSON.stringify(authTokens, null, 2), 'utf-8')
+  } catch (err) {
+    console.error('Failed to write auth file!', err)
+  }
 }
 
 // used by login

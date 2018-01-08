@@ -1,6 +1,6 @@
 'use strict'
 
-const {app, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session} = require('electron')
+const {app, dialog, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
 const assets = require('./assets.js')
 const spotify = require('./spotify.js')
 const Hotkey = require('./hotkey.js')
@@ -10,14 +10,10 @@ const url = require('url')
 
 /*
 To fix:
-error dialog when login fails (don't have to close, just keep existing in tray)
-don't open auth url when there is no login data (let the user do it manually from the settings dialog)
-auth url gets called a few times because of recursion in login -> authWindow -> login ...
 error handling if callback port is in use
 
 To do:
-use optgroup in playlist select
-hotkey module
+actually save song
 store module
 refactor data
 clean up login/settings transfer
@@ -31,6 +27,7 @@ let authWindow = null // eslint-disable-line no-unused-vars
 let tray = null // eslint-disable-line no-unused-vars
 let hotkey = null
 
+// should probably move this out to a seperate store module
 let data = {
   user: null,
   playlists: [],
@@ -40,11 +37,12 @@ let data = {
 
 function sendSettings () {
   if (settingsWindow) {
+    // don't really have to send data.user
     settingsWindow.webContents.send('settings-changed', data)
   }
 }
 
-function login (success, error) {
+function login (options, success, error) {
   spotify.login()
     .then(function (expiresOn) {
       console.log('Logged in, expires at ' + (new Date(expiresOn)).toLocaleTimeString())
@@ -61,10 +59,13 @@ function login (success, error) {
       console.log('Loaded user data')
     })
     .catch(function (err) {
-      // spotify.WebApiError
       if (err instanceof spotify.NoAuthError) {
-        console.log('Opening auth URL')
-        authWindow = createAuthWindow()
+        if(options.initiateAuth) {
+          console.log('Opening auth URL')
+          showAuthWindow()
+        } else {
+          error()
+        }
       } else {
         console.error('Failed to log in and read user data!', err)
         error()
@@ -72,12 +73,40 @@ function login (success, error) {
     })
 }
 
+function initialLogin() {
+  login({ initiateAuth: false },
+    () => { },
+    function () {
+      console.error('Login failed')
+      dialog.showMessageBox({
+        type: 'warning',
+        title: 'Not logged in',
+        message: 'You need to be logged in to Spotify for this app to work. Open the settings window and log in there.'
+      })
+    })
+}
+
+function fullLogin() {
+  login({ initiateAuth: true },
+    function () {
+      if (settingsWindow) {
+        settingsWindow.webContents.send('logged-in', data.user)
+      }
+    }, function () {
+      if (settingsWindow) {
+        settingsWindow.webContents.send('login-failed')
+      }
+  })
+}
+
 function logout () {
-  // should probably move this out to a seperate store module
   spotify.logout()
   data.user = null
-  data.playlists = []
-  sendSettings()
+  // data.playlists = []
+  // sendSettings()
+  if (settingsWindow) {
+    settingsWindow.webContents.send('logged-out')
+  }
   console.log('Logged out')
 }
 
@@ -86,19 +115,8 @@ ipcMain.on('settings-changed', function (event, settings) {
   data = settings
 })
 
-ipcMain.on('login', function (event) {
-  login(function () {
-    event.sender.send('logged-in', data.user)
-  }, function () {
-    event.sender.send('login-failed')
-  })
-})
-
-ipcMain.on('logout', function (event) {
-  logout()
-  event.sender.send('logged-out')
-})
-
+ipcMain.on('login', fullLogin)
+ipcMain.on('logout', logout)
 ipcMain.on('close-settings', function (event) {
   settingsWindow.close()
 })
@@ -108,10 +126,8 @@ function onHotkey () {
   spotify.getCurrentSong()
     .then(function (song) {
       if (!song.playing) {
-        console.log('No song playing')
-        // it's still saving in the next then?
-        // fix
-        // reject? throw?
+        console.log("Found a song but it's not playing")
+        return Promise.reject()
       } else {
         console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
         // return spotify.saveSong(song.id, data.selectedPlaylist)
@@ -154,26 +170,41 @@ function createSettingsWindow (onClosed) {
   return win
 }
 
-function createAuthWindow () {
+function createAuthWindow (onClosed) {
   // clear cookies so Spotify requires login data
   session.defaultSession.clearStorageData()
-  let authWin = new BrowserWindow({
+  let win = new BrowserWindow({
     width: 800,
     height: 600,
     icon: path.join(__dirname, assets.appIcon),
     show: false
   })
-  spotify.setAuthCallback(function () {
-    console.log('Auth closed!')
-    // recursive :/
-    // this opens more auth windows until the auth data actually arrived
-    login(() => { }, () => { })
-    authWin.close()
+  win.loadURL(spotify.getAuthUrl())
+  win.setMenu(null)
+  // called when authentication process is over (success, error or window closed)
+  let closing = false
+  const authClosed = function (success = false) {
+    if (success) { // called from the spotify module after successful authorization
+      console.log('Auth process completed')
+      fullLogin()
+      win.close()
+    } else {
+      if (closing) { // called from the electron on-closed handler
+        console.log('Auth window was closed')
+      } else { // called from the spotify module after failed authorization
+        console.error('Auth process failed')
+        win.close()
+      }
+    }
+  }
+  spotify.setAuthCallback(authClosed)
+  win.once('ready-to-show', win.show)
+  win.once('closed', function () {
+    closing = true
+    authClosed(false)
+    onClosed()
   })
-  authWin.loadURL(spotify.getAuthUrl())
-  authWin.setMenu(null)
-  authWin.once('ready-to-show', authWin.show)
-  return authWin
+  return win
 }
 
 function showSettingsWindow () {
@@ -183,6 +214,15 @@ function showSettingsWindow () {
     settingsWindow.restore()
   }
   settingsWindow.focus()
+}
+
+function showAuthWindow() {
+  if (authWindow === null) {
+    authWindow = createAuthWindow(() => { authWindow = null }) // Dereference the window object
+  } else if (authWindow.isMinimized()){
+    authWindow.restore()
+  }
+  authWindow.focus()
 }
 
 function createTrayMenu () {
@@ -201,13 +241,14 @@ function createTrayMenu () {
 }
 
 // Only allow one instance of the app
+// For some reason the second instance crashes (Win 10)
 const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) => {
   // Someone tried to run a second instance, we should focus our window.
   showSettingsWindow()
 })
-
 if (isSecondInstance) {
   app.quit()
+  return
 }
 
 // This method will be called when Electron has finished
@@ -220,8 +261,7 @@ app.on('ready', function () {
   if (!hotkey.register()) {
     console.error('Shortcut registration failed: ' + hotkey.accelerator)
   }
-
-  login(() => { }, () => { })
+  initialLogin()
 })
 
 // OSX
