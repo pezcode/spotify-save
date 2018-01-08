@@ -27,6 +27,7 @@
   "dependencies": {
     "bulma": "^0.6.1",
     "electron": "^1.7.10",
+    "electron-is": "^2.4.0",
     "randomstring": "^1.1.5",
     "spotify-web-api-node": "^2.5.0",
     "vue": "^2.5.13"

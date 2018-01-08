@@ -1,6 +1,7 @@
 'use strict'
 
 const { globalShortcut } = require('electron')
+const is = require('electron-is')
 const assert = require('assert')
 
 class Hotkey {
@@ -53,7 +54,7 @@ Hotkey.modifierIds = [
 ]
 
 Hotkey.modifierNames = [
-  (process.platform === 'darwin') ? 'Command' : 'Control',
+  (is.macOS()) ? 'Command' : 'Control',
   'Shift',
   'Alt'
 ]
