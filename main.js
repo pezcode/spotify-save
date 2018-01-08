@@ -11,8 +11,12 @@ const url = require('url')
 /*
 To fix:
 error handling if callback port is in use
+(also: gets registered before it checks if app is single instance)
+  -> even better, register own protocol -> app.setAsDefaultProtocolClient
+  -> requires --protocol=myprotocol and --protocolName=MyProtocol for electron-packager for OSX
 
 To do:
+add to autorun -> app.setLoginItemSettings
 actually save song
 store module
 native notification for errors and song being saved
@@ -247,20 +251,26 @@ function createTrayMenu () {
 }
 
 // Only allow one instance of the app
-// For some reason the second instance crashes (Win 10)
-const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) => {
-  // Someone tried to run a second instance, we should focus our window.
-  showSettingsWindow()
-})
-if (isSecondInstance) {
-  app.quit()
-  return
+// returns true if another instance is already running
+function setSingleInstance() {
+  const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    showSettingsWindow()
+  })
+  if (isSecondInstance) {
+    console.log('Another instance is already running, closing this one')
+    app.quit()
+    process.exitCode = 1
+  }
+  return isSecondInstance
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function () {
+  if(setSingleInstance())
+    return
   tray = createTrayMenu()
   // Register global shortcut listener
   hotkey = new Hotkey('F10', 'CommandOrControl', onHotkey)

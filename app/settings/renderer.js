@@ -27,7 +27,7 @@ new Vue({
   computed: {
     // these are constants
     // this makes sure we generate an error on accidental write
-    keys : function () {
+    keys: function () {
       return Hotkey.keys
     },
     modifiers: function () {
