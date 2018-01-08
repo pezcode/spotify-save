@@ -63,6 +63,9 @@ bin/
 # Generated icons
 assets/icons/
 
+# 3rd party modules
+app/vendor/
+
 # Config file, contains sensitive data
 config.json
 auth.json
