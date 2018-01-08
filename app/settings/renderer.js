@@ -5,18 +5,21 @@
 // All of the Node.js APIs are available in this process.
 
 const { ipcRenderer } = require('electron')
+const Hotkey = require('electron').remote.require('./hotkey.js')
 // require the vue build with compiler
 // just requiring 'vue' would give us the runtime-only version
 // you would need webpack/browserify with a vue loader in that case
 const Vue = require('vue/dist/vue.js')
 
-// sane default values
+// data sent my main process
+// Vue watches for changes on these
 let data = {
   user: null,
-  selectedPlaylists: [],
-  playlists: [],
-  keys: [],
-  hotkey: { key: null, modifiers: [] },
+  playlists: [], // input only
+  selectedPlaylist: null, // output only
+  keys: Hotkey.keys,
+  modifiers: Hotkey.modifiers,
+  hotkey: { key: null, modifiers: [] } // output only
 }
 
 // eslint-disable-next-line no-new

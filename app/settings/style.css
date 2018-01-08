@@ -45,15 +45,27 @@ select {
   width: 100%;
 }
 
-select[multiple] option:disabled {
-  font-size: 125%;
+.is-multiple select {
+  height: unset;
+  padding: 0 !important; /* Override Bulma's padding-right on <select>s without the multiple tag */
+}
+
+/* Copy Bulma style for <select> with the multiple tag */
+.is-multiple select option {
+  padding: 0.5em 1em;
+}
+
+/* Make sections indicated by disabled <option> stand out */
+
+.is-multiple select option:disabled {
+  font-size: 120%;
   font-weight: bold;
 }
 
-select[multiple] option:disabled::after {
+.is-multiple select option:disabled::after {
   content: ":";
 }
 
-select[multiple] option:not(:disabled) {
+.is-multiple select option:not(:disabled) {
   padding-left: 20px;
 }

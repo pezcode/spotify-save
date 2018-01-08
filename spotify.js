@@ -106,6 +106,9 @@ function saveTokens () {
 // used by login
 class NoAuthError extends Error { }
 exports.NoAuthError = NoAuthError
+// used by getCurrentSong
+class NoCurrentSongError extends Error { }
+exports.NoCurrentSongError = NoCurrentSongError
 
 exports.setAuthCallback = function (callback) {
   authCallback = callback
@@ -160,15 +163,21 @@ exports.getUser = function () {
     })
 }
 
-exports.getCurrentSong = function (callback) {
+exports.getCurrentSong = function () {
   return spotifyApi.getMyCurrentPlayingTrack()
     .then(function (data) {
+      if (!('item' in data.body)) {
+        throw new NoCurrentSongError()
+      }
+      const item = data.body.item
+      const album = item.album
       const song = {
-        id: data.item.id,
-        title: data.item.name,
-        artist: data.item.artists[0].name,
-        album: data.item.album.name,
-        image: data.item.album.images.length > 0 ? data.item.album.images[0].url : null
+        playing: data.body.is_playing,
+        id: item.id,
+        title: item.name,
+        artist: item.artists[0].name,
+        album: album.name,
+        image: album.images.length > 0 ? album.images[0].url : null
       }
       return song
     })

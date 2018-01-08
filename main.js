@@ -1,8 +1,9 @@
 'use strict'
 
-const {app, Menu, Tray, nativeImage, globalShortcut, BrowserWindow, ipcMain, session} = require('electron')
+const {app, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session} = require('electron')
 const assets = require('./assets.js')
 const spotify = require('./spotify.js')
+const Hotkey = require('./hotkey.js')
 
 const path = require('path')
 const url = require('url')
@@ -11,24 +12,28 @@ const url = require('url')
 To fix:
 error dialog when login fails (don't have to close, just keep existing in tray)
 auth url gets called a few times because of recursion in login -> authWindow -> login ...
+error handling if callback port is in use
 
 To do:
 hotkey module
 store module
 refactor data
 clean up login/settings transfer
+only allow one instance
 */
 
 // Keep a global reference of the window objects, if you don't, the windows will
 // be closed automatically when the JavaScript object is garbage collected.
 let settingsWindow = null
+let authWindow = null // eslint-disable-line no-unused-vars
+let tray = null // eslint-disable-line no-unused-vars
+let hotkey = null
 
 let data = {
   user: null,
   playlists: [],
-  selectedPlaylists: ['0', 'abc'],
-  keys: [{id: 'x', name: 'X'}, {id: 'pp', name: 'Play/Pause'}],
-  hotkey: { key: 'pp', modifiers: ['alt', 'shift'] }
+  selectedPlaylist: '0', // setting
+  hotkey: { key: 'MediaNextTrack', modifiers: ['Alt', 'Shift'] } // setting
 }
 
 function settingsChanged () {
@@ -57,7 +62,7 @@ function login (success, error) {
       // spotify.WebApiError
       if (err instanceof spotify.NoAuthError) {
         console.log('Opening auth URL')
-        createAuthWindow()
+        authWindow = createAuthWindow()
       } else {
         console.error('Failed to log in and read user data!', err)
         error()
@@ -98,6 +103,30 @@ ipcMain.on('close-settings', function (event) {
   settingsWindow.close()
 })
 
+function onHotkey () {
+  console.log('Hotkey pressed')
+  spotify.getCurrentSong()
+    .then(function (song) {
+      if (!song.playing) {
+        console.log('No song playing')
+      } else {
+        console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
+        // return spotify.saveSong(song.id, data.selectedPlaylist)
+        return data.selectedPlaylist
+      }
+    })
+    .then(function (playlist) {
+      console.log('Song saved to ' + playlist)
+    })
+    .catch(function (err) {
+      if (err instanceof spotify.NoCurrentSongError) {
+        console.log('No song playing')
+      } else {
+        console.error('Failed to save currently playing song', err)
+      }
+    })
+}
+
 function createSettingsWindow (onClosed) {
   // Create the browser window.
   let win = new BrowserWindow({
@@ -114,9 +143,9 @@ function createSettingsWindow (onClosed) {
     slashes: true
   }))
   // show Chromium dev tools
-   win.openDevTools()
+  // win.openDevTools()
   // Don't show an application menu
-  // win.setMenu(null)
+  win.setMenu(null)
   win.once('ready-to-show', () => { win.show(); settingsChanged() })
   win.once('closed', onClosed)
   return win
@@ -160,18 +189,18 @@ function createTrayMenu () {
   ])
   tray.setContextMenu(contextMenu)
   tray.on('click', showSettings)
+  return tray
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function () {
-  createTrayMenu()
+  tray = createTrayMenu()
   // Register global shortcut listener
-  const accelerator = 'CommandOrControl+F10'
-  const ret = globalShortcut.register(accelerator, () => { console.log('Current song: ' + spotify.getCurrentSong()) })
-  if (!ret) {
-    console.error('Shortcut registration failed: ' + accelerator)
+  hotkey = new Hotkey('F10', 'CommandOrControl', onHotkey)
+  if (!hotkey.register()) {
+    console.error('Shortcut registration failed: ' + hotkey.accelerator)
   }
 
   login(() => { }, () => { })

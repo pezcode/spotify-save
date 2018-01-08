@@ -38,7 +38,7 @@
               <div v-if="user" class="field">
                 <div class="control">
                   <div class="select is-multiple is-small">
-                    <select multiple size="7" id="playlists" v-model="selectedPlaylists">
+                    <select size="7" id="playlists" v-model="selectedPlaylist">
                       <option disabled value="-1">Library</option>
                       <option value="0">My Songs</option>
                       <option disabled value="-1">Playlists</option>
@@ -64,26 +64,16 @@
             <div class="field-body">
               <div class="field is-narrow">
                 <div class="field is-grouped">
-                  <div class="control">
-                    <label for="modifier-ctrl" class="checkbox is-small">
-                      <input type="checkbox" id="modifier-ctrl" value="ctrl" v-model="hotkey.modifiers">
-                      Control
-                    </label>
-                  </div>
-                  <div class="control">
-                    <label for="modifier-shift" class="checkbox is-small">
-                      <input type="checkbox" id="modifier-shift" value="shift" v-model="hotkey.modifiers">
-                      Shift
-                    </label>
-                  </div>
-                  <div class="control">
-                    <label for="modifier-alt" class="checkbox is-small">
-                      <input type="checkbox" id="modifier-alt" value="alt" v-model="hotkey.modifiers">
-                      Alt
-                    </label>
-                  </div>
+                  <template v-for="modifier in modifiers">
+                    <div class="control">
+                      <label v-bind:for="modifier.id" class="checkbox is-small">
+                        <input type="checkbox" v-bind:id="modifier.id" v-bind:value="modifier.id" v-model="hotkey.modifiers">
+                        {{ modifier.name }}
+                      </label>
+                    </div>
+                  </template>
                 </div>
-                <p class="help">Modifiers (Control = Command on Mac)</p>
+                <p class="help">Modifiers</p>
               </div>
               <div class="field is-expanded">
                 <div class="control">
@@ -106,7 +96,7 @@
             <div class="field-body">
               <div class="field is-grouped">
                 <div class="control">
-                  <input type="submit" value="Save" class="button is-primary">
+                  <input type="submit" value="Save" class="button is-primary"> <!-- this triggers form's v-on:submit -->
                 </div>
                 <div class="control">
                   <input type="button" value="Cancel" v-on:click="cancel" class="button">
