@@ -15,8 +15,6 @@ error handling if callback port is in use
 To do:
 actually save song
 store module
-refactor data
-clean up login/settings transfer
 native notification for errors and song being saved
 */
 
@@ -110,6 +108,10 @@ function logout () {
   console.log('Logged out')
 }
 
+function loggedIn() {
+  return (data.user !== null)
+}
+
 ipcMain.on('settings-changed', function (event, settings) {
   //  Object.assign(data, settings)
   data = settings
@@ -123,27 +125,31 @@ ipcMain.on('close-settings', function (event) {
 
 function onHotkey () {
   console.log('Hotkey pressed')
-  spotify.getCurrentSong()
-    .then(function (song) {
-      if (!song.playing) {
-        console.log("Found a song but it's not playing")
-        return Promise.reject()
-      } else {
-        console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
-        // return spotify.saveSong(song.id, data.selectedPlaylist)
-        return data.selectedPlaylist
-      }
-    })
-    .then(function (playlist) {
-      console.log('Song saved to ' + playlist)
-    })
-    .catch(function (err) {
-      if (err instanceof spotify.NoCurrentSongError) {
-        console.log('No song playing')
-      } else {
-        console.error('Failed to save currently playing song', err)
-      }
-    })
+  if (!loggedIn()) {
+    console.log('Not logged in')
+  } else {
+    spotify.getCurrentSong()
+      .then(function (song) {
+        if (!song.playing) {
+          console.log("Found a song but it's not playing")
+          return Promise.reject()
+        } else {
+          console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
+          // return spotify.saveSong(song.id, data.selectedPlaylist)
+          return data.selectedPlaylist
+        }
+      })
+      .then(function (playlist) {
+        console.log('Song saved to ' + playlist)
+      })
+      .catch(function (err) {
+        if (err instanceof spotify.NoCurrentSongError) {
+          console.log('No song playing')
+        } else {
+          console.error('Failed to save currently playing song', err)
+        }
+      })
+  }
 }
 
 function createSettingsWindow (onClosed) {

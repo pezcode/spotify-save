@@ -76,6 +76,7 @@ function onAuthData (data) {
 }
 
 function refreshAuthData () {
+  console.log('Attempting to refresh auth token')
   return spotifyApi.refreshAccessToken()
     .then(function (data) {
       onAuthData(data.body)
@@ -125,6 +126,8 @@ exports.getAuthUrl = function () {
 }
 
 exports.loggedIn = function () {
+  // this doesn't check if the auth token is actually valid
+  // no code actually uses this function anyway...
   return (spotifyApi.getAccessToken() != null)
 }
 
