@@ -16,11 +16,11 @@ auth url gets called a few times because of recursion in login -> authWindow -> 
 error handling if callback port is in use
 
 To do:
+use optgroup in playlist select
 hotkey module
 store module
 refactor data
 clean up login/settings transfer
-only allow one instance
 native notification for errors and song being saved
 */
 
@@ -38,7 +38,7 @@ let data = {
   hotkey: { key: 'MediaNextTrack', modifiers: ['Alt', 'Shift'] } // setting
 }
 
-function settingsChanged () {
+function sendSettings () {
   if (settingsWindow) {
     settingsWindow.webContents.send('settings-changed', data)
   }
@@ -56,7 +56,7 @@ function login (success, error) {
     })
     .then(function (playlists) {
       data.playlists = playlists
-      settingsChanged()
+      sendSettings()
       success()
       console.log('Loaded user data')
     })
@@ -77,7 +77,7 @@ function logout () {
   spotify.logout()
   data.user = null
   data.playlists = []
-  settingsChanged()
+  sendSettings()
   console.log('Logged out')
 }
 
@@ -109,6 +109,9 @@ function onHotkey () {
     .then(function (song) {
       if (!song.playing) {
         console.log('No song playing')
+        // it's still saving in the next then?
+        // fix
+        // reject? throw?
       } else {
         console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
         // return spotify.saveSong(song.id, data.selectedPlaylist)
@@ -146,7 +149,7 @@ function createSettingsWindow (onClosed) {
   // win.openDevTools()
   // Don't show an application menu
   win.setMenu(null)
-  win.once('ready-to-show', () => { win.show(); settingsChanged() })
+  win.once('ready-to-show', () => { win.show(); sendSettings() })
   win.once('closed', onClosed)
   return win
 }
@@ -173,10 +176,13 @@ function createAuthWindow () {
   return authWin
 }
 
-function showSettings () {
+function showSettingsWindow () {
   if (settingsWindow === null) {
     settingsWindow = createSettingsWindow(() => { settingsWindow = null }) // Dereference the window object
+  } else if (settingsWindow.isMinimized()){
+    settingsWindow.restore()
   }
+  settingsWindow.focus()
 }
 
 function createTrayMenu () {
@@ -185,13 +191,23 @@ function createTrayMenu () {
   let tray = new Tray(nativeImage.createFromPath(path.join(__dirname, assets.trayIcon)))
   tray.setToolTip(app.getName())
   const contextMenu = Menu.buildFromTemplate([
-    {label: 'Settings', type: 'normal', click: showSettings},
+    {label: 'Settings', type: 'normal', click: showSettingsWindow},
     {type: 'separator'},
     {label: 'Close', type: 'normal', click: app.quit}
   ])
   tray.setContextMenu(contextMenu)
-  tray.on('click', showSettings)
+  tray.on('click', showSettingsWindow)
   return tray
+}
+
+// Only allow one instance of the app
+const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) => {
+  // Someone tried to run a second instance, we should focus our window.
+  showSettingsWindow()
+})
+
+if (isSecondInstance) {
+  app.quit()
 }
 
 // This method will be called when Electron has finished
@@ -209,7 +225,7 @@ app.on('ready', function () {
 })
 
 // OSX
-app.on('activate', showSettings)
+app.on('activate', showSettingsWindow)
 
 // Subscribe to override default behavior of quitting
 app.on('window-all-closed', () => { })

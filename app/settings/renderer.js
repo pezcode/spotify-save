@@ -14,18 +14,26 @@ const Vue = require('vue/dist/vue.js')
 // data sent by main process
 // Vue watches for changes on these
 let data = {
-  user: null,
-  playlists: [], // input only
-  selectedPlaylist: null, // output only
-  keys: Hotkey.keys,
-  modifiers: Hotkey.modifiers,
-  hotkey: { key: null, modifiers: [] } // output only
+  user: null, // input
+  playlists: [], // input
+  selectedPlaylist: null, // input/output
+  hotkey: { key: null, modifiers: [] } // input/output
 }
 
 // eslint-disable-next-line no-new
 new Vue({
   el: '#settings',
   data: data,
+  computed: {
+    // these are constants
+    // this makes sure we generate an error on accidental write
+    keys : function () {
+      return Hotkey.keys
+    },
+    modifiers: function () {
+      return Hotkey.modifiers
+    }
+  },
   methods: {
     login: function (event) {
       ipcRenderer.send('login')
