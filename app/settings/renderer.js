@@ -11,7 +11,7 @@ const Hotkey = require('electron').remote.require('./hotkey.js')
 // you would need webpack/browserify with a vue loader in that case
 const Vue = require('vue/dist/vue.js')
 
-// data sent my main process
+// data sent by main process
 // Vue watches for changes on these
 let data = {
   user: null,

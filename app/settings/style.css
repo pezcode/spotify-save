@@ -1,11 +1,12 @@
 :root {
+  --background-color: #f1f1f1; /* almost white */
   --accent-color: #7c1ed7; /* same purple as in the app icon */
-  --text-color: #222222; /* dark gray */
-  --inverted-text-color: #eeeeee; /* light white */
+  --inverted-text-color: #eeeeee;
+  --light-text-color: #666666; /* darkish gray */
 }
 
 html {
-  background-color: #f1f1f1;
+  background-color: var(--background-color);
 }
 
 .avatar {
@@ -13,7 +14,7 @@ html {
 }
 
 .help {
-  color: #666666;
+  color: var(--light-text-color);
 }
 
 nav {
@@ -28,7 +29,7 @@ nav .avatar {
   border-radius: 50%; /* circle */
 }
 
-/* bulma hardcodes the color of <strong> */
+/* bulma hardcodes the color of <strong> even inside <p> */
 nav p, nav p * {
   color: var(--inverted-text-color);
 }
@@ -45,12 +46,16 @@ select {
   width: 100%;
 }
 
+/*
+Copy Bulma style for <select> with the multiple tag
+to normal <select> that has size attribute
+*/
+
 .is-multiple select {
   height: unset;
   padding: 0 !important; /* Override Bulma's padding-right on <select>s without the multiple tag */
 }
 
-/* Copy Bulma style for <select> with the multiple tag */
 .is-multiple select option {
   padding: 0.5em 1em;
 }

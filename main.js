@@ -11,6 +11,7 @@ const url = require('url')
 /*
 To fix:
 error dialog when login fails (don't have to close, just keep existing in tray)
+don't open auth url when there is no login data (let the user do it manually from the settings dialog)
 auth url gets called a few times because of recursion in login -> authWindow -> login ...
 error handling if callback port is in use
 
@@ -20,6 +21,7 @@ store module
 refactor data
 clean up login/settings transfer
 only allow one instance
+native notification for errors and song being saved
 */
 
 // Keep a global reference of the window objects, if you don't, the windows will
@@ -76,8 +78,6 @@ function logout () {
   data.user = null
   data.playlists = []
   settingsChanged()
-  // clear cookies so auth URL requires login  data
-  session.defaultSession.clearStorageData()
   console.log('Logged out')
 }
 
@@ -152,6 +152,8 @@ function createSettingsWindow (onClosed) {
 }
 
 function createAuthWindow () {
+  // clear cookies so Spotify requires login data
+  session.defaultSession.clearStorageData()
   let authWin = new BrowserWindow({
     width: 800,
     height: 600,
@@ -204,11 +206,6 @@ app.on('ready', function () {
   }
 
   login(() => { }, () => { })
-})
-
-app.on('quit', function () {
-  // Clear all storages (cookies, cache, etc)
-  session.defaultSession.clearStorageData()
 })
 
 // OSX
