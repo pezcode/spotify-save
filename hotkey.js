@@ -2,7 +2,6 @@
 
 const { globalShortcut } = require('electron')
 const is = require('electron-is')
-const assert = require('assert')
 
 class Hotkey {
   constructor (key, mods, callback) {
@@ -93,8 +92,8 @@ Hotkey.keyNames = [
   'Next Track', 'Previous Track', 'Stop', 'Play/Pause'
 ]
 
-assert.strictEqual(Hotkey.modifierIds.length, Hotkey.modifierNames.length)
-assert.strictEqual(Hotkey.keyIds.length, Hotkey.keyNames.length)
+console.assert(Hotkey.modifierIds.length === Hotkey.modifierNames.length)
+console.assert(Hotkey.keyIds.length === Hotkey.keyNames.length)
 
 Hotkey.modifiers = Hotkey.modifierIds.map((v, i) => ({ id: v, name: Hotkey.modifierNames[i] }))
 Hotkey.keys = Hotkey.keyIds.map((v, i) => ({ id: v, name: Hotkey.keyNames[i] }))
