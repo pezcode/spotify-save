@@ -1,6 +1,6 @@
 'use strict'
 
-const {app, dialog, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
+const { app, dialog, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
 const assets = require('./assets.js')
 const spotify = require('./spotify.js')
 const Hotkey = require('./hotkey.js')
@@ -11,7 +11,7 @@ const url = require('url')
 /*
 To fix:
 error handling if callback port is in use
-(also: gets registered before it checks if app is single instance)
+(also: gets registered before it checks if app is single instance -> spotify.initAuthCallback + callbacks)
   -> even better, register own protocol -> app.setAsDefaultProtocolClient
   -> requires --protocol=myprotocol and --protocolName=MyProtocol for electron-packager for OSX
 
@@ -34,7 +34,8 @@ let data = {
   user: null,
   playlists: [],
   selectedPlaylist: '0', // setting
-  hotkey: { key: 'MediaNextTrack', modifiers: ['Alt', 'Shift'] } // setting
+  hotkey: { key: 'MediaNextTrack', modifiers: ['Alt', 'Shift'] }, // setting
+  autostart: false // setting
 }
 
 function sendSettings () {
@@ -62,7 +63,7 @@ function login (options, success, error) {
     })
     .catch(function (err) {
       if (err instanceof spotify.NoAuthError) {
-        if(options.initiateAuth) {
+        if (options.initiateAuth) {
           console.log('Opening auth URL')
           showAuthWindow()
         } else {
@@ -75,7 +76,7 @@ function login (options, success, error) {
     })
 }
 
-function initialLogin() {
+function initialLogin () {
   login({ initiateAuth: false },
     () => { },
     function () {
@@ -88,7 +89,7 @@ function initialLogin() {
     })
 }
 
-function fullLogin() {
+function fullLogin () {
   login({ initiateAuth: true },
     function () {
       if (settingsWindow) {
@@ -98,7 +99,7 @@ function fullLogin() {
       if (settingsWindow) {
         settingsWindow.webContents.send('login-failed')
       }
-  })
+    })
 }
 
 function logout () {
@@ -112,7 +113,7 @@ function logout () {
   console.log('Logged out')
 }
 
-function loggedIn() {
+function loggedIn () {
   return (data.user !== null)
 }
 
@@ -135,8 +136,7 @@ function onHotkey () {
     spotify.getCurrentSong()
       .then(function (song) {
         if (!song.playing) {
-          console.log("Found a song but it's not playing")
-          return Promise.reject()
+          throw new Error("Found a song but it's not playing")
         } else {
           console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
           // return spotify.saveSong(song.id, data.selectedPlaylist)
@@ -161,7 +161,7 @@ function createSettingsWindow (onClosed) {
   let win = new BrowserWindow({
     width: 800,
     height: 600,
-    title: app.getName() + ' Settings',
+    title: app.getName(),
     icon: path.join(__dirname, assets.appIcon), // taskbar and handle icon
     show: false
   })
@@ -220,16 +220,16 @@ function createAuthWindow (onClosed) {
 function showSettingsWindow () {
   if (settingsWindow === null) {
     settingsWindow = createSettingsWindow(() => { settingsWindow = null }) // Dereference the window object
-  } else if (settingsWindow.isMinimized()){
+  } else if (settingsWindow.isMinimized()) {
     settingsWindow.restore()
   }
   settingsWindow.focus()
 }
 
-function showAuthWindow() {
+function showAuthWindow () {
   if (authWindow === null) {
     authWindow = createAuthWindow(() => { authWindow = null }) // Dereference the window object
-  } else if (authWindow.isMinimized()){
+  } else if (authWindow.isMinimized()) {
     authWindow.restore()
   }
   authWindow.focus()
@@ -252,7 +252,7 @@ function createTrayMenu () {
 
 // Only allow one instance of the app
 // returns true if another instance is already running
-function setSingleInstance() {
+function setSingleInstance () {
   const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) => {
     // Someone tried to run a second instance, we should focus our window.
     showSettingsWindow()
@@ -269,8 +269,9 @@ function setSingleInstance() {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', function () {
-  if(setSingleInstance())
+  if (setSingleInstance()) {
     return
+  }
   tray = createTrayMenu()
   // Register global shortcut listener
   hotkey = new Hotkey('F10', 'CommandOrControl', onHotkey)
