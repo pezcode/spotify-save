@@ -2,6 +2,7 @@
 
 const { app, dialog, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
 const settings = require('electron-settings')
+const is = require('electron-is')
 const assets = require('./assets.js')
 const spotify = require('./spotify.js')
 const Hotkey = require('./hotkey.js')
@@ -11,6 +12,7 @@ const url = require('url')
 
 /*
 To fix:
+persist spotify auth data in electron-settings?
 error handling if callback port is in use
 (also: gets registered before it checks if app is single instance -> spotify.initAuthCallback + callbacks)
   -> even better, register own protocol -> app.setAsDefaultProtocolClient
@@ -65,6 +67,7 @@ function login (options, success, error) {
       console.log('Loaded user data')
     })
     .catch(function (err) {
+      state.user = null
       if (err instanceof spotify.NoAuthError) {
         if (options.initiateAuth) {
           console.log('Opening auth URL')
@@ -293,8 +296,11 @@ function applySettings () {
   if (key) {
     setHotkey(key, onHotkey)
   }
+  console.log(is.production())
   // register autostart
-  app.setLoginItemSettings({ openAtLogin: settings.get('autostart', false) })
+  if (is.production()) { // not for instances run during development (electron .), run the build step first
+    app.setLoginItemSettings({ openAtLogin: settings.get('autostart', false) })
+  }
 }
 
 // This method will be called when Electron has finished
