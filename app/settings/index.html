@@ -49,7 +49,7 @@
                     </select>
                   </div>
                 </div>
-                <p class="help">Select one or more playlist(s) you want to save the current song to</p>
+                <p class="help">Select the playlist you want to save the current song to</p>
               </div>
               <div v-else class="field">
                 <div class="control">
@@ -85,6 +85,21 @@
                       </option>
                     </select>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="field is-horizontal">
+            <div class="field-label">
+              <label class="label">Autostart</label>
+            </div>
+            <div class="field-body">
+              <div class="field is-narrow">
+                <div class="control">
+                  <label for="autostart" class="checkbox is-small">
+                    <input type="checkbox" id="autostart" v-model="autostart">
+                    Run on startup
+                  </label>
                 </div>
               </div>
             </div>

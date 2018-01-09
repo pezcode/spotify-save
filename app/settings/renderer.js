@@ -17,7 +17,8 @@ let data = {
   user: null, // input
   playlists: [], // input
   selectedPlaylist: null, // input/output
-  hotkey: { key: null, modifiers: [] } // input/output
+  hotkey: { key: null, modifiers: [] }, // input/output
+  autostart: false // input/output
 }
 
 // eslint-disable-next-line no-new
