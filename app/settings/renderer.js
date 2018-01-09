@@ -11,14 +11,17 @@ const Hotkey = require('electron').remote.require('./hotkey.js')
 // you would need webpack/browserify with a vue loader in that case
 const Vue = require('vue/dist/vue.js')
 
-// data sent by main process
 // Vue watches for changes on these
 let data = {
-  user: null, // input
-  playlists: [], // input
-  selectedPlaylist: null, // input/output
-  hotkey: { key: null, modifiers: [] }, // input/output
-  autostart: false // input/output
+  state: { // input
+    user: null,
+    playlists: []
+  },
+  settings: { // input/output
+    selectedPlaylist: null,
+    hotkey: { key: null, modifiers: [] },
+    autostart: false
+  }
 }
 
 // eslint-disable-next-line no-new
@@ -43,7 +46,7 @@ new Vue({
       ipcRenderer.send('logout')
     },
     save: function (event) {
-      ipcRenderer.send('settings-changed', data)
+      ipcRenderer.send('settings-changed', this.settings)
       ipcRenderer.send('close-settings')
     },
     cancel: function (event) {
@@ -52,20 +55,23 @@ new Vue({
   }
 })
 
-ipcRenderer.on('settings-changed', function (event, settings) {
-  // data = settings
-  // copy values instead of replacing object
-  Object.assign(data, settings)
+ipcRenderer.on('settings-changed', function (event, newSettings) {
+  data.settings = newSettings
+  if (!data.settings.hotkey) {
+    data.settings.hotkey = { key: null, modifiers: [] }
+  }
 })
 
-ipcRenderer.on('logged-in', function (event, user) {
-  data.user = user
+ipcRenderer.on('logged-in', function (event, newState) {
+  data.state = newState
 })
 
 ipcRenderer.on('login-failed', function (event) {
-  data.user = null
+  data.state.user = null
+  data.state.playlists = []
 })
 
 ipcRenderer.on('logged-out', function (event) {
-  data.user = null
+  data.state.user = null
+  data.state.playlists = []
 })

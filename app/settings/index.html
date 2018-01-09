@@ -11,18 +11,18 @@
       <nav class="level is-mobile"> <!-- is-mobile makes it appear on any viewport size -->
         <!-- Left side -->
         <div class="level-left">
-          <div v-if="user" class="level-item">
-            <img v-bind:src="user.image" class="image is-32x32 avatar">
+          <div v-if="state.user" class="level-item">
+            <img v-bind:src="state.user.image" class="image is-32x32 avatar">
           </div>
           <div class="level-item">
-            <p v-if="user">Logged in as <strong>{{ user.name }}</strong></p>
+            <p v-if="state.user">Logged in as <strong>{{ state.user.name }}</strong></p>
             <p v-else>Not logged in</p>
           </div>
         </div>
         <!-- Right side -->
         <div class="level-right">
           <div class="level-item">
-            <a v-if="user" v-on:click="logout" class="button is-danger is-small is-inverted">Logout</a>
+            <a v-if="state.user" v-on:click="logout" class="button is-danger is-small is-inverted">Logout</a>
             <!-- todo: Use bulma is-loading on the button while login in progress -->
             <a v-else v-on:click="login" class="button is-small is-inverted">Log in</a>
           </div>
@@ -35,15 +35,15 @@
               <label class="label">Playlist</label>
             </div>
             <div class="field-body">
-              <div v-if="user" class="field">
+              <div v-if="state.user" class="field">
                 <div class="control">
                   <div class="select is-multiple is-small">
-                    <select size="7" id="playlists" v-model="selectedPlaylist">
+                    <select size="7" id="playlists" v-model="settings.selectedPlaylist">
                       <!-- should probably use optgroup here but bulma doesn't support it too well -->
                       <option disabled value="-1">Library</option>
                       <option value="0">My Songs</option>
                       <option disabled value="-1">Playlists</option>
-                      <option v-for="playlist in playlists" v-bind:value="playlist.id" :key="playlist.id">
+                      <option v-for="playlist in state.playlists" v-bind:value="playlist.id" :key="playlist.id">
                         {{ playlist.name }}
                       </option>
                     </select>
@@ -53,7 +53,7 @@
               </div>
               <div v-else class="field">
                 <div class="control">
-                  <p class="help is-danger">Log in to your Spotify account to see playlists</p>
+                  <p class="help is-info">Log in to your Spotify account to see playlists</p>
                 </div>
               </div>
             </div>
@@ -68,7 +68,7 @@
                   <template v-for="modifier in modifiers">
                     <div class="control">
                       <label v-bind:for="modifier.id" class="checkbox is-small">
-                        <input type="checkbox" v-bind:id="modifier.id" v-bind:value="modifier.id" v-model="hotkey.modifiers">
+                        <input type="checkbox" v-bind:id="modifier.id" v-bind:value="modifier.id" v-model="settings.hotkey.modifiers">
                         {{ modifier.name }}
                       </label>
                     </div>
@@ -79,13 +79,14 @@
               <div class="field is-expanded">
                 <div class="control">
                   <div class="select is-small">
-                    <select id="keys" v-model="hotkey.key">
+                    <select id="keys" v-model="settings.hotkey.key">
                       <option v-for="key in keys" v-bind:value="key.id" :key="key.id">
                         {{ key.name }}
                       </option>
                     </select>
                   </div>
                 </div>
+                <p v-if="!settings.hotkey.key" class="help is-danger">Choose a valid hotkey</p>
               </div>
             </div>
           </div>
@@ -97,7 +98,7 @@
               <div class="field is-narrow">
                 <div class="control">
                   <label for="autostart" class="checkbox is-small">
-                    <input type="checkbox" id="autostart" v-model="autostart">
+                    <input type="checkbox" id="autostart" v-model="settings.autostart">
                     Run on startup
                   </label>
                 </div>
@@ -112,7 +113,7 @@
             <div class="field-body">
               <div class="field is-grouped">
                 <div class="control">
-                  <input type="submit" value="Save" class="button is-primary"> <!-- this triggers form's v-on:submit -->
+                  <input type="submit" value="Save" :disabled="!settings.hotkey.key" class="button is-primary"> <!-- this triggers form's v-on:submit -->
                 </div>
                 <div class="control">
                   <input type="button" value="Cancel" v-on:click="cancel" class="button">

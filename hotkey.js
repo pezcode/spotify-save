@@ -9,11 +9,11 @@ class Hotkey {
       mods = [mods]
     }
     if (!Hotkey.isValidKey(key)) {
-      throw new Error('Invalid key')
+      throw new InvalidHotkeyError('Invalid key')
     }
     for (const mod of mods) {
       if (!Hotkey.isValidModifier(mod)) {
-        throw new Error('Invalid modifier')
+        throw new InvalidHotkeyError('Invalid modifier')
       }
     }
     this.key = key
@@ -43,6 +43,9 @@ class Hotkey {
     return (Hotkey.modifiers.find(x => x.id === mod) !== undefined)
   }
 }
+
+class InvalidHotkeyError extends Error { }
+Hotkey.InvalidHotkeyError = InvalidHotkeyError
 
 // https://github.com/electron/electron/blob/master/docs/api/accelerator.md
 

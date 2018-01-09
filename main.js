@@ -1,6 +1,7 @@
 'use strict'
 
 const { app, dialog, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
+const settings = require('electron-settings')
 const assets = require('./assets.js')
 const spotify = require('./spotify.js')
 const Hotkey = require('./hotkey.js')
@@ -16,9 +17,7 @@ error handling if callback port is in use
   -> requires --protocol=myprotocol and --protocolName=MyProtocol for electron-packager for OSX
 
 To do:
-add to autorun -> app.setLoginItemSettings
 actually save song
-store module
 native notification for errors and song being saved
 */
 
@@ -29,19 +28,24 @@ let authWindow = null // eslint-disable-line no-unused-vars
 let tray = null // eslint-disable-line no-unused-vars
 let hotkey = null
 
-// should probably move this out to a seperate store module
-let data = {
+let state = {
   user: null,
-  playlists: [],
-  selectedPlaylist: '0', // setting
-  hotkey: { key: 'MediaNextTrack', modifiers: ['Alt', 'Shift'] }, // setting
-  autostart: false // setting
+  playlists: []
 }
 
 function sendSettings () {
   if (settingsWindow) {
-    // don't really have to send data.user
-    settingsWindow.webContents.send('settings-changed', data)
+    settingsWindow.webContents.send('settings-changed', settings.getAll())
+  }
+}
+
+function sendState () {
+  if (settingsWindow) {
+    if (state.user) {
+      settingsWindow.webContents.send('logged-in', state)
+    } else {
+      settingsWindow.webContents.send('logged-out')
+    }
   }
 }
 
@@ -52,12 +56,11 @@ function login (options, success, error) {
       return spotify.getUser()
     })
     .then(function (user) {
-      data.user = user
+      state.user = user
       return spotify.getPlaylists()
     })
     .then(function (playlists) {
-      data.playlists = playlists
-      sendSettings()
+      state.playlists = playlists
       success()
       console.log('Loaded user data')
     })
@@ -93,7 +96,7 @@ function fullLogin () {
   login({ initiateAuth: true },
     function () {
       if (settingsWindow) {
-        settingsWindow.webContents.send('logged-in', data.user)
+        settingsWindow.webContents.send('logged-in', state)
       }
     }, function () {
       if (settingsWindow) {
@@ -104,9 +107,9 @@ function fullLogin () {
 
 function logout () {
   spotify.logout()
-  data.user = null
-  // data.playlists = []
-  // sendSettings()
+  state.user = null
+  state.playlists = []
+  settings.set('selectedPlaylist', null) // don't keep user's playlist id
   if (settingsWindow) {
     settingsWindow.webContents.send('logged-out')
   }
@@ -114,12 +117,13 @@ function logout () {
 }
 
 function loggedIn () {
-  return (data.user !== null)
+  return (state.user !== null)
 }
 
-ipcMain.on('settings-changed', function (event, settings) {
-  //  Object.assign(data, settings)
-  data = settings
+ipcMain.on('settings-changed', function (event, newSettings) {
+  settings.setAll(newSettings)
+  console.log('New settings', settings.getAll())
+  applySettings()
 })
 
 ipcMain.on('login', fullLogin)
@@ -130,8 +134,11 @@ ipcMain.on('close-settings', function (event) {
 
 function onHotkey () {
   console.log('Hotkey pressed')
+  const playlist = settings.get('selectedPlaylist', null)
   if (!loggedIn()) {
-    console.log('Not logged in')
+    console.error('Not logged in')
+  } else if (!playlist) {
+    console.error('No playlist selected')
   } else {
     spotify.getCurrentSong()
       .then(function (song) {
@@ -139,8 +146,8 @@ function onHotkey () {
           throw new Error("Found a song but it's not playing")
         } else {
           console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
-          // return spotify.saveSong(song.id, data.selectedPlaylist)
-          return data.selectedPlaylist
+          // return spotify.saveSong(song.id, playlist)
+          return playlist
         }
       })
       .then(function (playlist) {
@@ -175,7 +182,11 @@ function createSettingsWindow (onClosed) {
   // win.openDevTools()
   // Don't show an application menu
   win.setMenu(null)
-  win.once('ready-to-show', () => { win.show(); sendSettings() })
+  win.once('ready-to-show', function () {
+    sendState()
+    sendSettings()
+    win.show()
+  })
   win.once('closed', onClosed)
   return win
 }
@@ -265,6 +276,27 @@ function setSingleInstance () {
   return isSecondInstance
 }
 
+// Register global shortcut listener
+function setHotkey (newHotkey, callback) {
+  if (hotkey) {
+    hotkey.unregister()
+  }
+  hotkey = new Hotkey(newHotkey.key, newHotkey.modifiers, callback)
+  if (!hotkey.register()) {
+    console.error('Shortcut registration failed: ' + hotkey.accelerator)
+  }
+}
+
+function applySettings () {
+  // set global hotkey
+  const key = settings.get('hotkey', null)
+  if (key) {
+    setHotkey(key, onHotkey)
+  }
+  // register autostart
+  app.setLoginItemSettings({ openAtLogin: settings.get('autostart', false) })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -273,11 +305,8 @@ app.on('ready', function () {
     return
   }
   tray = createTrayMenu()
-  // Register global shortcut listener
-  hotkey = new Hotkey('F10', 'CommandOrControl', onHotkey)
-  if (!hotkey.register()) {
-    console.error('Shortcut registration failed: ' + hotkey.accelerator)
-  }
+  console.log('Settings loaded from ' + settings.file(), settings.getAll())
+  applySettings()
   initialLogin()
 })
 
