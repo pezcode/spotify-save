@@ -11,7 +11,7 @@
   "scripts": {
     "install": "npm run copy-css && npm run generate-icons",
     "start": "electron .",
-    "debug": "electron --inspect-brk .",
+    "debug": "electron --debug .",
     "lint": "eslint .",
     "build": "run-script-os",
     "build:win32": "electron-packager . --overwrite --out=./bin --icon=./assets/icons/win/icon.ico",
@@ -25,8 +25,8 @@
   "author": "pezcode",
   "license": "MIT",
   "dependencies": {
-    "bulma": "^0.6.1",
-    "electron": "^1.7.10",
+    "bulma": "^0.6.2",
+    "electron": "^1.8.1",
     "electron-is": "^2.4.0",
     "electron-settings": "^3.1.4",
     "randomstring": "^1.1.5",
@@ -38,7 +38,7 @@
     "del-cli": "^1.1.0",
     "electron-icon-maker": "0.0.4",
     "electron-packager": "^10.1.1",
-    "eslint": "^4.14.0",
+    "eslint": "^4.15.0",
     "eslint-config-standard": "^11.0.0-beta.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-node": "^5.2.1",
