@@ -39,7 +39,7 @@ new Vue({
     modifiers: function () {
       return Hotkey.modifiers
     },
-    myMusicId: function () {
+    savedTracksId: function () {
       return spotify.savedTracksId
     }
   },

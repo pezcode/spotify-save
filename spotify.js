@@ -20,6 +20,7 @@ let spotifyApi = new SpotifyWebApi({
 
 let authCallback = () => { }
 let authTokens = { }
+let user = null
 
 // exceptions
 class NoAuthError extends Error { }
@@ -34,7 +35,7 @@ exports.savedTracksId = savedTracksId
 // this server listens to requests on the redirect URI registered with Spotify when logging in
 // it gives us an auth code we can pass to spotifyApi to get the tokens needed to access data
 function startAuthServer (port, path) {
-  console.log('Starting auth callback server at' + uri)
+  console.log('Starting auth callback server at ' + uri)
   let server = http.createServer((req, res) => {
     if (req.method === 'GET') {
       const parsed = new url.URL(req.url, 'http://localhost:' + port)
@@ -94,6 +95,20 @@ function refreshAuthData () {
     })
 }
 
+function getMe () {
+  return spotifyApi.getMe()
+    .then(data => {
+      const user = data.body
+      return {
+        id: user.id,
+        // displayname for facebook accounts (id is a number in that case)
+        // id for accounts with email-login (displayname is null)
+        name: user.displayname || user.id,
+        image: user.images.length > 0 ? user.images[0].url : null
+      }
+    })
+}
+
 exports.init = function () {
   startAuthServer(config.callbackPort, config.callbackPath)
 }
@@ -122,32 +137,26 @@ exports.login = function () {
   spotifyApi.setAccessToken(authTokens.accessToken)
   spotifyApi.setRefreshToken(authTokens.refreshToken)
   // if the access token expired, get a new one
+  let expiresPromise = null
   if (!('expiresOn' in authTokens) || authTokens.expiresOn < Date.now()) {
     console.log('Auth token expired, requesting new one')
-    return refreshAuthData()
+    expiresPromise = refreshAuthData()
   } else {
     console.log('Auth token still valid until ' + (new Date(authTokens.expiresOn)).toLocaleString())
-    return Promise.resolve(authTokens.expiresOn)
+    expiresPromise = Promise.resolve(authTokens.expiresOn)
   }
+  return expiresPromise
+    .then(expiresOn => getMe())
+    .then(me => {
+      user = me
+      return user
+    })
 }
 
 exports.logout = function () {
   spotifyApi.setAccessToken(null)
   spotifyApi.setRefreshToken(null)
   authTokens = { }
-}
-
-exports.getUser = function () {
-  return spotifyApi.getMe()
-    .then(data => {
-      const user = data.body
-      return {
-        // displayname for facebook accounts (id is a number in that case)
-        // id for accounts with email-login (displayname is null)
-        name: user.displayname || user.id,
-        image: user.images.length > 0 ? user.images[0].url : null
-      }
-    })
 }
 
 exports.getCurrentSong = function () {
@@ -157,21 +166,22 @@ exports.getCurrentSong = function () {
         throw new NoCurrentSongError()
       }
       const song = data.body.item
-      const album = song.album
+      // const album = song.album
       return {
         playing: data.body.is_playing,
         id: song.id,
+        uri: song.uri,
         title: song.name,
-        artist: song.artists[0].name,
-        album: album.name,
-        image: album.images.length > 0 ? album.images[0].url : null
+        artist: song.artists[0].name
+        // album: album.name
+        // image: album.images.length > 0 ? album.images[0].url : null
       }
     })
 }
 
 function getPlaylistsRecursive (playlists, offset) {
   // go with default limit
-  return spotifyApi.getUserPlaylists(null, {offset: offset})
+  return spotifyApi.getUserPlaylists(user.id, {offset: offset})
     .then(data => {
       // only extract id and name from new playlist objects
       const newlist = playlists.concat(data.body.items.map(pl => ({id: pl.id, name: pl.name})))
@@ -190,8 +200,8 @@ exports.getPlaylists = function () {
 
 exports.saveSong = function (song, playlist) {
   if (playlist === savedTracksId) {
-    return spotifyApi.addToMySavedTracks([ song ])
+    return spotifyApi.addToMySavedTracks([ song.id ])
   } else {
-    return spotifyApi.addTracksToPlaylist(null, playlist, [ song ])
+    return spotifyApi.addTracksToPlaylist(user.id, playlist, [ song.uri ])
   }
 }

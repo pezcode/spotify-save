@@ -40,10 +40,6 @@ function sendState () {
 
 function login (options, success, error) {
   spotify.login()
-    .then(expiresOn => {
-      console.log('Logged in, expires at ' + (new Date(expiresOn)).toLocaleTimeString())
-      return spotify.getUser()
-    })
     .then(user => {
       state.user = user
       return spotify.getPlaylists()
@@ -52,7 +48,7 @@ function login (options, success, error) {
       state.playlists = playlists
       settings.set('login', spotify.getAuthData())
       success()
-      console.log('Loaded user data')
+      console.log('Loaded playlists')
     })
     .catch(err => {
       state.user = null
@@ -115,7 +111,7 @@ function loggedIn () {
 ipcMain.on('settings-changed', function (event, newSettings) {
   const merged = Object.assign(settings.getAll(), newSettings)
   settings.setAll(merged)
-  console.log('New settings', merged)
+  // console.log('New settings', merged)
   applySettings()
 })
 
@@ -158,7 +154,6 @@ function onHotkey () {
       message: 'Log in to Spotify'
     })
   } else if (!playlist) {
-    // console.error('No playlist selected')
     notify({
       type: 'warning',
       title: 'No playlist selected',
@@ -167,15 +162,11 @@ function onHotkey () {
   } else {
     spotify.getCurrentSong()
       .then(song => saveSong(song, playlist))
-      .then(playlistName => {
-        /*
+      .then(song => {
         notify({
-          title: 'Currently playing',
-          message: song.title + ' by ' + song.artist
+          title: 'Song saved',
+          message: song.title + ' by ' + song.artist + ' saved to ' + getPlaylistName(playlist)
         })
-
-        */
-        console.log('Song saved to ' + playlistName)
       })
       .catch(function (err) {
         if (err instanceof spotify.NoCurrentSongError) {
@@ -187,17 +178,24 @@ function onHotkey () {
   }
 }
 
-function saveSong (song, playlist) {
-  let playlistName = state.playlists.find(pl => pl.id === playlist)
-  if (!playlistName) {
-    if (playlist === spotify.savedTracksId) {
-      playlistName = 'My Library'
-    } else {
-      playlistName = '[Unknown]'
+function getPlaylistName (id) {
+  // get name for id
+  let name = '[Unknown]'
+  if (id === spotify.savedTracksId) {
+    name = 'My Songs'
+  } else if (state.playlists) {
+    const found = state.playlists.find(pl => pl.id === id)
+    if (found) {
+      name = found.name
     }
   }
-  return spotify.saveSong(song.id, playlist)
-    .then(() => playlistName)
+  return name
+}
+
+function saveSong (song, playlist) {
+  // return Promise.resolve(playlistName)
+  return spotify.saveSong(song, playlist)
+    .then(() => song)
 }
 
 function createSettingsWindow (onClosed) {
@@ -348,7 +346,7 @@ app.on('ready', function () {
     return
   }
   tray = createTrayMenu()
-  console.log('Settings loaded from ' + settings.file(), settings.getAll())
+  console.log('Settings loaded from ' + settings.file())
   applySettings()
   spotify.setAuthData(settings.get('login', {}))
   spotify.init() // starts the auth server
