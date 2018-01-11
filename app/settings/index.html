@@ -41,7 +41,7 @@
                     <select size="7" id="playlists" v-model="settings.selectedPlaylist">
                       <!-- should probably use optgroup here but bulma doesn't support it too well -->
                       <option disabled value="-1">Library</option>
-                      <option value="0">My Songs</option>
+                      <option v-bind:value="myMusicId">My Music</option>
                       <option disabled value="-1">Playlists</option>
                       <option v-for="playlist in state.playlists" v-bind:value="playlist.id" :key="playlist.id">
                         {{ playlist.name }}

@@ -5,7 +5,9 @@
 // All of the Node.js APIs are available in this process.
 
 const { ipcRenderer } = require('electron')
-const Hotkey = require('electron').remote.require('./hotkey.js')
+const root = require('app-root-path')
+const Hotkey = require(root + '/hotkey.js')
+const spotify = require(root + '/spotify.js')
 // require the vue build with compiler
 // just requiring 'vue' would give us the runtime-only version
 // you would need webpack/browserify with a vue loader in that case
@@ -36,6 +38,9 @@ new Vue({
     },
     modifiers: function () {
       return Hotkey.modifiers
+    },
+    myMusicId: function () {
+      return spotify.savedTracksId
     }
   },
   methods: {

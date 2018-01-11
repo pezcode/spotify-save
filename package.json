@@ -25,6 +25,7 @@
   "author": "pezcode",
   "license": "MIT",
   "dependencies": {
+    "app-root-path": "^2.0.1",
     "bulma": "^0.6.2",
     "electron": "^1.8.1",
     "electron-is": "^2.4.0",
