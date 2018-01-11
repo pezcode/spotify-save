@@ -3,37 +3,43 @@
 const SpotifyWebApi = require('spotify-web-api-node')
 const http = require('http')
 const url = require('url')
-const fs = require('fs')
 const randomstring = require('randomstring')
+
 const config = require('./config.json')
 
-let authState = null
-let authTokens = {}
-
 const uri = 'http://localhost:' + config.callbackPort + config.callbackPath
-
 // https://developer.spotify.com/web-api/using-scopes/
 const scopes = ['user-read-currently-playing', 'user-library-modify', 'playlist-read-private', 'playlist-modify-public', 'playlist-modify-private']
-const spotifyApi = new SpotifyWebApi({
+const state = randomstring.generate()
+
+let spotifyApi = new SpotifyWebApi({
   clientId: config.clientId,
   clientSecret: config.clientSecret,
   redirectUri: uri
 })
 
 let authCallback = () => { }
+let authTokens = { }
 
-startServer()
-// when do we start/close this?
+// exceptions
+class NoAuthError extends Error { }
+class NoCurrentSongError extends Error { }
+exports.NoAuthError = NoAuthError
+exports.NoCurrentSongError = NoCurrentSongError
+
+// playlist id of 'Your Music'
+const savedTracksId = '0'
+exports.savedTracksId = savedTracksId
 
 // this server listens to requests on the redirect URI registered with Spotify when logging in
 // it gives us an auth code we can pass to spotifyApi to get the tokens needed to access data
-function startServer () {
-  let server = http.createServer(function (request, response) {
-    let status = 200
-    if (request.method === 'GET') {
-      const parsed = new url.URL(request.url, 'http://localhost:' + config.callbackPort)
-      if (parsed.pathname === config.callbackPath) {
-        if (parsed.searchParams.get('state') === authState) {
+function startAuthServer (port, path) {
+  console.log('Starting auth callback server at' + uri)
+  let server = http.createServer((req, res) => {
+    if (req.method === 'GET') {
+      const parsed = new url.URL(req.url, 'http://localhost:' + port)
+      if (parsed.pathname === path) {
+        if (parsed.searchParams.get('state') === state) {
           if (parsed.searchParams.has('code')) {
             onAuthCode(parsed.searchParams.get('code'))
             // call authcallback later, so auth data is available
@@ -44,22 +50,26 @@ function startServer () {
         }
       }
     }
-    // setTimeout(() => { server.close() }, 15000)
-    response.writeHead(status, {'Content-Type': 'text/plain'})
-    response.end()
+    res.writeHead(200, {'Content-Type': 'text/plain'})
+    res.end()
   })
-  server.listen(config.callbackPort)
+  server.on('error', err => {
+    if (err.code === 'EADDRINUSE') {
+      console.error('Port ' + port + ' already in use')
+    }
+    console.error('Failed to start server')
+  })
+  server.listen(port)
   return server
 }
 
 function onAuthCode (code) {
   spotifyApi.authorizationCodeGrant(code)
-    .then(function (data) {
+    .then(data => {
       onAuthData(data.body)
-      saveTokens()
       authCallback(true)
     })
-    .catch(function (err) {
+    .catch(err => {
       console.error('Failed to authorize with code!', err)
     })
 }
@@ -78,68 +88,41 @@ function onAuthData (data) {
 function refreshAuthData () {
   console.log('Attempting to refresh auth token')
   return spotifyApi.refreshAccessToken()
-    .then(function (data) {
+    .then(data => {
       onAuthData(data.body)
-      saveTokens()
       return authTokens.expiresOn
     })
 }
 
-function readTokens () {
-  try {
-    authTokens = JSON.parse(fs.readFileSync('./auth.json', 'utf8'))
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      // console.log('No auth file found')
-    } else {
-      console.error('Failed to read auth file')
-    }
-    authTokens = { }
-  }
+exports.init = function () {
+  startAuthServer(config.callbackPort, config.callbackPath)
 }
-
-function saveTokens () {
-  try {
-    fs.writeFileSync('./auth.json', JSON.stringify(authTokens, null, 2), 'utf-8')
-  } catch (err) {
-    console.error('Failed to write auth file!', err)
-  }
-}
-
-// used by login
-class NoAuthError extends Error { }
-exports.NoAuthError = NoAuthError
-// used by getCurrentSong
-class NoCurrentSongError extends Error { }
-exports.NoCurrentSongError = NoCurrentSongError
 
 exports.setAuthCallback = function (callback) {
   authCallback = callback
 }
 
-exports.getAuthUrl = function () {
-  // let user login and grant scope privileges
-  if (authState === null) {
-    authState = randomstring.generate() // very basic security =D
-  }
-  return spotifyApi.createAuthorizeURL(scopes, authState)
+exports.getAuthData = function () {
+  return authTokens
 }
 
-exports.loggedIn = function () {
-  // this doesn't check if the auth token is actually valid
-  // no code actually uses this function anyway...
-  return (spotifyApi.getAccessToken() != null)
+exports.setAuthData = function (newTokens) {
+  authTokens = newTokens
+}
+
+exports.getAuthUrl = function () {
+  // let user login and grant scope privileges
+  return spotifyApi.createAuthorizeURL(scopes, state)
 }
 
 exports.login = function () {
-  readTokens()
-  if (!('accessToken' in authTokens)) {
+  if (!('accessToken' in authTokens && 'refreshToken' in authTokens)) {
     return Promise.reject(new NoAuthError('No auth data. Log in and grant auth code'))
   }
   spotifyApi.setAccessToken(authTokens.accessToken)
   spotifyApi.setRefreshToken(authTokens.refreshToken)
   // if the access token expired, get a new one
-  if (authTokens.expiresOn < Date.now()) {
+  if (!('expiresOn' in authTokens) || authTokens.expiresOn < Date.now()) {
     console.log('Auth token expired, requesting new one')
     return refreshAuthData()
   } else {
@@ -152,46 +135,44 @@ exports.logout = function () {
   spotifyApi.setAccessToken(null)
   spotifyApi.setRefreshToken(null)
   authTokens = { }
-  saveTokens()
 }
 
 exports.getUser = function () {
   return spotifyApi.getMe()
-    .then(function (data) {
-      // displayname for facebook accounts (id is a number in that case)
-      // id for accounts with email-login (displayname is null)
-      const user = {
-        name: data.body.displayname || data.body.id,
-        image: data.body.images.length > 0 ? data.body.images[0].url : null
+    .then(data => {
+      const user = data.body
+      return {
+        // displayname for facebook accounts (id is a number in that case)
+        // id for accounts with email-login (displayname is null)
+        name: user.displayname || user.id,
+        image: user.images.length > 0 ? user.images[0].url : null
       }
-      return user
     })
 }
 
 exports.getCurrentSong = function () {
   return spotifyApi.getMyCurrentPlayingTrack()
-    .then(function (data) {
+    .then(data => {
       if (!('item' in data.body)) {
         throw new NoCurrentSongError()
       }
-      const item = data.body.item
-      const album = item.album
-      const song = {
+      const song = data.body.item
+      const album = song.album
+      return {
         playing: data.body.is_playing,
-        id: item.id,
-        title: item.name,
-        artist: item.artists[0].name,
+        id: song.id,
+        title: song.name,
+        artist: song.artists[0].name,
         album: album.name,
         image: album.images.length > 0 ? album.images[0].url : null
       }
-      return song
     })
 }
 
 function getPlaylistsRecursive (playlists, offset) {
   // go with default limit
   return spotifyApi.getUserPlaylists(null, {offset: offset})
-    .then(function (data) {
+    .then(data => {
       // only extract id and name from new playlist objects
       const newlist = playlists.concat(data.body.items.map(pl => ({id: pl.id, name: pl.name})))
       const newoffset = data.body.offset + data.body.items.length
@@ -208,5 +189,9 @@ exports.getPlaylists = function () {
 }
 
 exports.saveSong = function (song, playlist) {
-
+  if (playlist === savedTracksId) {
+    return spotifyApi.addToMySavedTracks([ song ])
+  } else {
+    return spotifyApi.addTracksToPlaylist(null, playlist, [ song ])
+  }
 }

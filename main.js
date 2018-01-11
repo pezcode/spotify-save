@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, dialog, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
+const { app, dialog, Notification, Menu, Tray, nativeImage, BrowserWindow, ipcMain, session } = require('electron')
 const settings = require('electron-settings')
 const is = require('electron-is')
 const assets = require('./assets.js')
@@ -9,19 +9,6 @@ const Hotkey = require('./hotkey.js')
 
 const path = require('path')
 const url = require('url')
-
-/*
-To fix:
-persist spotify auth data in electron-settings?
-error handling if callback port is in use
-(also: gets registered before it checks if app is single instance -> spotify.initAuthCallback + callbacks)
-  -> even better, register own protocol -> app.setAsDefaultProtocolClient
-  -> requires --protocol=myprotocol and --protocolName=MyProtocol for electron-packager for OSX
-
-To do:
-actually save song
-native notification for errors and song being saved
-*/
 
 // Keep a global reference of the window objects, if you don't, the windows will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -53,20 +40,21 @@ function sendState () {
 
 function login (options, success, error) {
   spotify.login()
-    .then(function (expiresOn) {
+    .then(expiresOn => {
       console.log('Logged in, expires at ' + (new Date(expiresOn)).toLocaleTimeString())
       return spotify.getUser()
     })
-    .then(function (user) {
+    .then(user => {
       state.user = user
       return spotify.getPlaylists()
     })
-    .then(function (playlists) {
+    .then(playlists => {
       state.playlists = playlists
+      settings.set('login', spotify.getAuthData())
       success()
       console.log('Loaded user data')
     })
-    .catch(function (err) {
+    .catch(err => {
       state.user = null
       if (err instanceof spotify.NoAuthError) {
         if (options.initiateAuth) {
@@ -85,9 +73,9 @@ function login (options, success, error) {
 function initialLogin () {
   login({ initiateAuth: false },
     () => { },
-    function () {
+    () => {
       console.error('Login failed')
-      dialog.showMessageBox({
+      notify({
         type: 'warning',
         title: 'Not logged in',
         message: 'You need to be logged in to Spotify for this app to work. Open the settings window and log in there.'
@@ -112,7 +100,8 @@ function logout () {
   spotify.logout()
   state.user = null
   state.playlists = []
-  settings.set('selectedPlaylist', null) // don't keep user's playlist id
+  settings.delete('selectedPlaylist')
+  settings.delete('login')
   if (settingsWindow) {
     settingsWindow.webContents.send('logged-out')
   }
@@ -124,37 +113,69 @@ function loggedIn () {
 }
 
 ipcMain.on('settings-changed', function (event, newSettings) {
-  settings.setAll(newSettings)
-  console.log('New settings', settings.getAll())
+  const merged = Object.assign(settings.getAll(), newSettings)
+  settings.setAll(merged)
+  console.log('New settings', merged)
   applySettings()
 })
 
 ipcMain.on('login', fullLogin)
 ipcMain.on('logout', logout)
-ipcMain.on('close-settings', function (event) {
-  settingsWindow.close()
-})
+ipcMain.on('close-settings', event => { settingsWindow.close() })
+
+function notify (options) {
+  console.log('Notification: ' + options.title)
+  console.log(options.message)
+  if (is.windows()) {
+    // notifications don't work properly on Win 10 Creator's Update
+    // requires electron-builder installer and a call to app.setAppUserModelId
+    // https://github.com/electron/electron/issues/10864
+    tray.displayBalloon({
+      icon: assets.app.image.medium,
+      title: options.title,
+      content: options.message
+    })
+  } else if (Notification.isSupported()) {
+    let notification = new Notification({
+      title: options.title,
+      body: options.message
+    })
+    notification.on('click', event => { showSettingsWindow() })
+    notification.show()
+  } else if (options.force || options.type in ['warning', 'error']) {
+    dialog.showMessageBox(options)
+  }
+}
 
 function onHotkey () {
   console.log('Hotkey pressed')
   const playlist = settings.get('selectedPlaylist', null)
   if (!loggedIn()) {
-    console.error('Not logged in')
+    // console.error('Not logged in')
+    notify({
+      type: 'warning',
+      title: 'Not logged in',
+      message: 'Log in to Spotify'
+    })
   } else if (!playlist) {
-    console.error('No playlist selected')
+    // console.error('No playlist selected')
+    notify({
+      type: 'warning',
+      title: 'No playlist selected',
+      message: 'Select a playlist in the settings to save the current song to'
+    })
   } else {
     spotify.getCurrentSong()
-      .then(function (song) {
-        if (!song.playing) {
-          throw new Error("Found a song but it's not playing")
-        } else {
-          console.log('Currently playing song: ' + song.title + ' by ' + song.artist)
-          // return spotify.saveSong(song.id, playlist)
-          return playlist
-        }
-      })
-      .then(function (playlist) {
-        console.log('Song saved to ' + playlist)
+      .then(song => saveSong(song, playlist))
+      .then(playlistName => {
+        /*
+        notify({
+          title: 'Currently playing',
+          message: song.title + ' by ' + song.artist
+        })
+
+        */
+        console.log('Song saved to ' + playlistName)
       })
       .catch(function (err) {
         if (err instanceof spotify.NoCurrentSongError) {
@@ -166,13 +187,26 @@ function onHotkey () {
   }
 }
 
+function saveSong (song, playlist) {
+  let playlistName = state.playlists.find(pl => pl.id === playlist)
+  if (!playlistName) {
+    if (playlist === spotify.savedTracksId) {
+      playlistName = 'My Library'
+    } else {
+      playlistName = '[Unknown]'
+    }
+  }
+  return spotify.saveSong(song.id, playlist)
+    .then(() => playlistName)
+}
+
 function createSettingsWindow (onClosed) {
   // Create the browser window.
   let win = new BrowserWindow({
     width: 800,
     height: 600,
     title: app.getName(),
-    icon: path.join(__dirname, assets.appIcon), // taskbar and handle icon
+    icon: assets.app.icon.source, // taskbar and handle icon
     show: false
   })
   // and load the html of the window.
@@ -185,7 +219,7 @@ function createSettingsWindow (onClosed) {
   // win.openDevTools()
   // Don't show an application menu
   win.setMenu(null)
-  win.once('ready-to-show', function () {
+  win.once('ready-to-show', () => {
     sendState()
     sendSettings()
     win.show()
@@ -200,14 +234,14 @@ function createAuthWindow (onClosed) {
   let win = new BrowserWindow({
     width: 800,
     height: 600,
-    icon: path.join(__dirname, assets.appIcon),
+    icon: assets.app.icon.source,
     show: false
   })
   win.loadURL(spotify.getAuthUrl())
   win.setMenu(null)
   // called when authentication process is over (success, error or window closed)
   let closing = false
-  const authClosed = function (success = false) {
+  const authClosed = success => {
     if (success) { // called from the spotify module after successful authorization
       console.log('Auth process completed')
       fullLogin()
@@ -223,7 +257,7 @@ function createAuthWindow (onClosed) {
   }
   spotify.setAuthCallback(authClosed)
   win.once('ready-to-show', win.show)
-  win.once('closed', function () {
+  win.once('closed', () => {
     closing = true
     authClosed(false)
     onClosed()
@@ -252,7 +286,7 @@ function showAuthWindow () {
 function createTrayMenu () {
   // this randomly fails to resolve the path
   // createFromPath makes sure it turns into an empty image instead of throwing an exception
-  let tray = new Tray(nativeImage.createFromPath(path.join(__dirname, assets.trayIcon)))
+  let tray = new Tray(nativeImage.createFromPath(assets.app.icon.tray))
   tray.setToolTip(app.getName())
   const contextMenu = Menu.buildFromTemplate([
     {label: 'Settings', type: 'normal', click: showSettingsWindow},
@@ -261,6 +295,7 @@ function createTrayMenu () {
   ])
   tray.setContextMenu(contextMenu)
   tray.on('click', showSettingsWindow)
+  tray.on('balloon-click', showSettingsWindow) // Windows
   return tray
 }
 
@@ -296,10 +331,12 @@ function applySettings () {
   if (key) {
     setHotkey(key, onHotkey)
   }
-  console.log(is.production())
   // register autostart
-  if (is.production()) { // not for instances run during development (electron .), run the build step first
-    app.setLoginItemSettings({ openAtLogin: settings.get('autostart', false) })
+  const autostart = settings.get('autostart', false)
+  if (is.production()) {
+    app.setLoginItemSettings({ openAtLogin: autostart })
+  } else if (autostart) {
+    console.log('Autostart is disabled on the dev build, run the build step first and start that binary')
   }
 }
 
@@ -313,6 +350,8 @@ app.on('ready', function () {
   tray = createTrayMenu()
   console.log('Settings loaded from ' + settings.file(), settings.getAll())
   applySettings()
+  spotify.setAuthData(settings.get('login', {}))
+  spotify.init() // starts the auth server
   initialLogin()
 })
 

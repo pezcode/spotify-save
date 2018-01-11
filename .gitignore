@@ -68,4 +68,3 @@ app/vendor/
 
 # Config file, contains sensitive data
 config.json
-auth.json
