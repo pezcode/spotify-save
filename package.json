@@ -3,6 +3,8 @@
   "productName": "SpotifySave",
   "version": "1.0.0",
   "description": "Save the currently running song on Spotify to a playlist with a hotkey",
+  "author": "pezcode",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/pezcode/spotify-save.git"
@@ -11,23 +13,20 @@
   "scripts": {
     "install": "npm run copy-css && npm run generate-icons",
     "start": "electron .",
-    "debug": "electron --debug .",
+    "debug": "electron --inspect-brk .",
     "lint": "eslint .",
-    "build": "run-script-os",
-    "build:win32": "electron-packager . --overwrite --out=./bin --icon=./assets/icons/win/icon.ico",
-    "build:darwin": "electron-packager . --overwrite --out=./bin --icon=./assets/icons/mac/icon.icns",
-    "build:linux": "electron-packager . --overwrite --out=./bin --icon=./assets/icons/png/1024x1024.png",
-    "build-clean": "del-cli ./bin/**",
+    "build": "electron-builder build",
+    "build:win32": "electron-builder build --windows",
+    "build:linux": "electron-builder build --linux",
+    "build:darwin": "electron-builder build --macos",
+    "build-clean": "del-cli ./dist/**",
     "generate-icons": "electron-icon-maker -i ./assets/app-icon.png -o ./assets",
     "delete-icons": "del-cli ./assets/icons/**",
     "copy-css": "copyfiles -f ./node_modules/bulma/css/bulma.css ./app/vendor"
   },
-  "author": "pezcode",
-  "license": "MIT",
   "dependencies": {
     "app-root-path": "^2.0.1",
     "bulma": "^0.6.2",
-    "electron": "^1.8.1",
     "electron-is": "^2.4.0",
     "electron-settings": "^3.1.4",
     "randomstring": "^1.1.5",
@@ -37,15 +36,15 @@
   "devDependencies": {
     "copyfiles": "^1.2.0",
     "del-cli": "^1.1.0",
+    "electron": "^1.7.10",
+    "electron-builder": "^19.52.1",
     "electron-icon-maker": "0.0.4",
-    "electron-packager": "^10.1.1",
     "eslint": "^4.15.0",
     "eslint-config-standard": "^11.0.0-beta.0",
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-node": "^5.2.1",
     "eslint-plugin-promise": "^3.6.0",
-    "eslint-plugin-standard": "^3.0.1",
-    "run-script-os": "^1.0.2"
+    "eslint-plugin-standard": "^3.0.1"
   },
   "engines": {
     "node": ">=6.0.0"
