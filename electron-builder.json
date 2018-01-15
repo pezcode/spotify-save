@@ -6,7 +6,8 @@
   },
   "files": [
     "**/*",
-    "assets/icons/**/*"
+    "assets/icons/**/*",
+    "!config.json"
   ],
   "win": {
     "icon": "assets/icons/win/icon.ico",
