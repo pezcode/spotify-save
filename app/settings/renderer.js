@@ -44,6 +44,9 @@ new Vue({
     }
   },
   methods: {
+    resetCredentials: function (event) {
+      ipcRenderer.send('reset-credentials')
+    },
     login: function (event) {
       ipcRenderer.send('login')
     },

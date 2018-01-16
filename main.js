@@ -10,10 +10,13 @@ const Hotkey = require('./hotkey.js')
 const path = require('path')
 const url = require('url')
 
+// Spotify app id and secret need to exist
+let credentialsSet = false
 // Keep a global reference of the window objects, if you don't, the windows will
 // be closed automatically when the JavaScript object is garbage collected.
 let settingsWindow = null
 let authWindow = null // eslint-disable-line no-unused-vars
+let credentialsWindow = null
 let tray = null // eslint-disable-line no-unused-vars
 let hotkey = null
 
@@ -111,13 +114,24 @@ function loggedIn () {
 ipcMain.on('settings-changed', function (event, newSettings) {
   const merged = Object.assign(settings.getAll(), newSettings)
   settings.setAll(merged)
-  // console.log('New settings', merged)
   applySettings()
+})
+
+ipcMain.on('credentials-changed', function (event, newCredentials) {
+  settings.set('spotify', newCredentials)
+  onSpotifyCredentials(newCredentials)
+})
+
+ipcMain.on('reset-credentials', function (event) {
+  settings.delete('spotify')
+  app.relaunch()
+  app.quit()
 })
 
 ipcMain.on('login', fullLogin)
 ipcMain.on('logout', logout)
 ipcMain.on('close-settings', event => { settingsWindow.close() })
+ipcMain.on('close-credential-prompt', event => { credentialsWindow.close() })
 
 function notify (options) {
   console.log('Notification: ' + options.title)
@@ -208,11 +222,7 @@ function createSettingsWindow (onClosed) {
     show: false
   })
   // and load the html of the window.
-  win.loadURL(url.format({
-    pathname: path.join(__dirname, 'app/settings/index.html'),
-    protocol: 'file:',
-    slashes: true
-  }))
+  win.loadURL('file://' + path.join(__dirname, 'app/settings/index.html'))
   // show Chromium dev tools
   // win.openDevTools()
   // Don't show an application menu
@@ -263,6 +273,26 @@ function createAuthWindow (onClosed) {
   return win
 }
 
+function createCredentialsWindow (onClosed) {
+  let win = new BrowserWindow({
+    width: 400,
+    height: 500,
+    title: app.getName(),
+    icon: assets.app.icon.source,
+    show: false
+  })
+  win.loadURL('file://' + path.join(__dirname, 'app/credential-prompt/index.html'))
+  // show Chromium dev tools
+  // win.openDevTools()
+  // Don't show an application menu
+  win.setMenu(null)
+  win.once('ready-to-show', () => {
+    win.show()
+  })
+  win.once('closed', onClosed)
+  return win
+}
+
 function showSettingsWindow () {
   if (settingsWindow === null) {
     settingsWindow = createSettingsWindow(() => { settingsWindow = null }) // Dereference the window object
@@ -274,11 +304,25 @@ function showSettingsWindow () {
 
 function showAuthWindow () {
   if (authWindow === null) {
-    authWindow = createAuthWindow(() => { authWindow = null }) // Dereference the window object
+    authWindow = createAuthWindow(() => { authWindow = null })
   } else if (authWindow.isMinimized()) {
     authWindow.restore()
   }
   authWindow.focus()
+}
+
+function showCredentialsWindow () {
+  if (credentialsWindow === null) {
+    credentialsWindow = createCredentialsWindow(() => {
+      credentialsWindow = null
+      if (!credentialsSet) {
+        app.quit()
+      }
+    })
+  } else if (credentialsWindow.isMinimized()) {
+    credentialsWindow.restore()
+  }
+  credentialsWindow.focus()
 }
 
 function createTrayMenu () {
@@ -302,12 +346,11 @@ function createTrayMenu () {
 function setSingleInstance () {
   const isSecondInstance = app.makeSingleInstance((commandLine, workingDirectory) => {
     // Someone tried to run a second instance, we should focus our window.
-    showSettingsWindow()
+    // showSettingsWindow()
   })
   if (isSecondInstance) {
     console.log('Another instance is already running, closing this one')
     app.quit()
-    process.exitCode = 1
   }
   return isSecondInstance
 }
@@ -338,6 +381,19 @@ function applySettings () {
   }
 }
 
+function onSpotifyCredentials (credentials) {
+  if (!(credentials.clientId && credentials.clientSecret)) {
+    return false
+  } else {
+    credentialsSet = true
+    tray = createTrayMenu()
+    spotify.setAuthData(settings.get('login', {}))
+    spotify.init(credentials.clientId, credentials.clientSecret) // starts the auth server
+    initialLogin()
+    return true
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -345,12 +401,11 @@ app.on('ready', function () {
   if (setSingleInstance()) {
     return
   }
-  tray = createTrayMenu()
   console.log('Settings loaded from ' + settings.file())
+  if (!onSpotifyCredentials(settings.get('spotify', {}))) {
+    showCredentialsWindow()
+  }
   applySettings()
-  spotify.setAuthData(settings.get('login', {}))
-  spotify.init() // starts the auth server
-  initialLogin()
 })
 
 // OSX

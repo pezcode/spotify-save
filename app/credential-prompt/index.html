@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- no title lets us set title during BrowserWindow creation -->
+    <link rel="stylesheet" href="../vendor/bulma.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="credential-prompt">
+      <section>
+        <div class="columns is-centered">
+          <div class="column is-three-quarters">
+            <article class="message is-danger">
+              <div class="message-header">
+                <p>Spotify app credentials not found</p>
+              </div>
+              <div class="message-body">
+                <p>
+                  You can create an app on the <a target="_blank" href="https://developer.spotify.com/my-applications/">Spotify Developer website</a>.
+                  Go to your app's settings and add the following Redirect URI:
+                </p>
+                <p>{{ redirectUri }}</p>
+              </div>
+            </article>
+            <hr>
+            <form v-on:submit.prevent="save"> <!-- prevent page reload when form is submitted -->
+              <div class="field is-narrow">
+                  <label for="client-id" class="label is-small">Client ID</label>
+                  <div class="control">
+                    <input type="text" id="client-id" placeholder="Spotify client ID" v-model="clientId" class="input">
+                  </div>
+              </div>
+              <div class="field is-narrow">
+                <label for="client-secret" class="label is-small">Client Secret</label>
+                <div class="control">
+                  <input type="text" id="client-secret" placeholder="Spotify client secret" v-model="clientSecret" class="input">
+                </div>
+              </div>
+                <div class="field is-grouped">
+                  <div class="control">
+                    <input type="submit" value="OK" :disabled="!clientId || !clientSecret" class="button is-primary "> <!-- this triggers form's v-on:submit -->
+                  </div>
+                  <div class="control">
+                    <input type="button" value="Cancel" v-on:click="cancel" class="button">
+                  </div>
+                </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
