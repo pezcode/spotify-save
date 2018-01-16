@@ -1,7 +1,7 @@
 {
   "name": "spotify-save",
-  "productName": "SpotifySave",
-  "version": "1.0.1",
+  "productName": "spotify-save",
+  "version": "1.0.2",
   "description": "Save the currently running song on Spotify to a playlist with a hotkey",
   "author": "pezcode",
   "license": "MIT",

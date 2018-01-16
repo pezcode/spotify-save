@@ -24,7 +24,12 @@
           <div class="level-item">
             <a v-if="state.user" v-on:click="logout" class="button is-danger is-small is-inverted">Logout</a>
             <!-- todo: Use bulma is-loading on the button while login in progress -->
-            <a v-else v-on:click="login" class="button is-small is-inverted">Log in</a>
+            <template v-else>
+              <div class="buttons">
+            <a v-on:click="login" class="button is-small is-inverted is-primary">Log in</a>
+            <a v-on:click="resetCredentials" class="button is-small is-inverted is-danger">Reset Spotify app credentials</a>
+          </div>
+            </template>
           </div>
         </div>
       </nav>

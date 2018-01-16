@@ -13,8 +13,6 @@ const scopes = ['user-read-currently-playing', 'user-library-modify', 'playlist-
 const state = randomstring.generate()
 
 let spotifyApi = new SpotifyWebApi({
-  clientId: config.clientId,
-  clientSecret: config.clientSecret,
   redirectUri: uri
 })
 
@@ -109,7 +107,9 @@ function getMe () {
     })
 }
 
-exports.init = function () {
+exports.init = function (clientId, clientSecret) {
+  spotifyApi.setClientId(clientId)
+  spotifyApi.setClientSecret(clientSecret)
   startAuthServer(config.callbackPort, config.callbackPath)
 }
 
@@ -154,8 +154,8 @@ exports.login = function () {
 }
 
 exports.logout = function () {
-  spotifyApi.setAccessToken(null)
-  spotifyApi.setRefreshToken(null)
+  spotifyApi.resetAccessToken()
+  spotifyApi.resetRefreshToken()
   authTokens = { }
 }
 

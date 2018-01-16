@@ -6,8 +6,6 @@ A simple [Electron](https://electronjs.org/) app that runs in the background and
 
 You can find binaries and setup files for Windows and Linux in the [Github release section](https://github.com/pezcode/spotify-save/releases/).
 
-**You will still need to configure the app with your Spotify key**. See *Configuration* below.
-
 ## From source
 
 If you wish to use the source to build and run the app yourself:
@@ -53,14 +51,9 @@ Built binaries can be found in the *dist* folder.
 
 ## Configuration
 
-You will need a Spotify App to interact with the web API. Go to the [Spotify Developer website](https://developer.spotify.com/my-applications/) and create a new app.
+You will need a Spotify App so spotify-save can interact with the web API. Go to the [Spotify Developer website](https://developer.spotify.com/my-applications/) and create a new app.
 
-Rename _config.json.template_ to _config.json_, open it with a text editor and replace `clientId` and `clientSecret` with the values shown for your Spotify App.
-**Don't share these values with other people!**
-
-You also need to add a redirect URI to your app. It has to match the local callback URL, by default it's `http://localhost:8888/spotify-auth`. You can change the port and path in _config.json_, but make sure you add the correct URI to your app.
-
-
+spotify-save will prompt you for your Client ID and Secret on first start. It will also tell you the Redirect URI you need to add to your Spotify app's settings for login to work.
 
 ## License
 

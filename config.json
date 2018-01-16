@@ -1,6 +1,4 @@
 {
-  "clientId": "12345",
-  "clientSecret": "67890",
   "callbackPort": "8888",
   "callbackPath": "/spotify-auth"
 }

@@ -1,0 +1,11 @@
+:root {
+  --background-color: #f1f1f1; /* almost white */
+}
+
+html {
+  background-color: var(--background-color);
+}
+
+section {
+  padding: 10px;
+}
